@@ -1,0 +1,77 @@
+#!/usr/bin/python3
+
+import keyboard
+from queue import Queue
+from threading import Thread
+import requests
+import base64
+import os
+import subprocess
+import shutil
+import json
+
+json_file = "/etc/cfg.json"
+
+with open(json_file) as file:
+    data_cfg = json.load(file)
+
+
+work_dir = '/data'
+media = f'{work_dir}/media'
+os.makedirs(media, exist_ok=True)
+usb_backingfile = os.path.join(work_dir, 'usb_partition.img')
+
+barcode_buff = ''
+host_name = data_cfg['host']
+port = data_cfg['port']
+desktop_url = f'http://{host_name}:{port}/'
+
+def move_to_usb(fpath):
+    url = 'http://127.0.0.1:8080/addfile'
+    data = {
+        'fpath': fpath
+    }
+    response = requests.post(url, json=data)
+
+def request_barcode(barcode):
+    print("Barcode: ", barcode)
+    url = desktop_url + 'barcode'
+
+    data = {
+        'barcode': barcode
+    }
+    response = requests.post(url, json=data)
+    if response.status_code == 200:
+        try:
+            attachment_filename = response.headers.get('Content-Disposition').split('filename=')[1]
+            save_path = f'{media}/{attachment_filename}'
+            with open(save_path, 'wb') as file:
+                file.write(response.content)
+            print(f"Received file: {attachment_filename}")
+            move_to_usb(save_path)
+            print("File content saved successfully.")
+        except:
+            pass
+    else:
+        print("Error occurred while sending the request.")
+
+def key_event(event):
+    global barcode_buff
+    if event.event_type == 'down':
+        if event.name == 'enter':
+            request_barcode(barcode_buff)
+            barcode_buff = ''
+        else:
+            barcode_buff += event.name
+
+print('Barcode Scanner: start')
+try:
+    keyboard.on_press(key_event)
+    keyboard.wait()
+except OSError as e:
+    if e.errno == 19:
+        print("Barcode Scanner: Device disconnected.")
+    else:
+        print("Barcode Scanner: An error occurred:", e)
+
+exit(1)
