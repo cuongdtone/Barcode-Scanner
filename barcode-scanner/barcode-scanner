@@ -58,12 +58,21 @@ def find_device():
     while True:
         devices = [InputDevice(path) for path in evdev.list_devices()]
         barcode_device = None
+        keyboard_devie = None
         for device in devices:
-            print(device.name)
+            if device is None:
+                continue
             if "barcode" in device.name.lower():
                 barcode_device = device
-        if request_barcode is not None:
+
+            if "keyboard" in device.name.lower():
+                keyboard_devie = device
+            
+        if barcode_device is not None:
             return barcode_device
+
+        if keyboard_devie is not None:
+            return keyboard_devie
 
 
 def barcode_scanner(barcode_device):
