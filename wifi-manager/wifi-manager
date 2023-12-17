@@ -33,9 +33,6 @@ while True:
         print(os.system(f'nmcli d wifi connect "{ssid}" password "{password}"'))
         time.sleep(2)
     else:
-        if register_flag is False:
-            response = requests.post(desktop_url, json={'device_id': device_id})
-            if response.status_code == 200:
-                register_flag = True
         os.system('touch /etc/wifi_connected')
+        response = requests.post(desktop_url, json={'device_id': device_id})
         time.sleep(50)

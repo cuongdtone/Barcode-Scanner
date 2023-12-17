@@ -8,7 +8,7 @@ modprobe g_mass_storage -r
 mount "${usb_backingfile}" /mnt/
 
 if [ -f '/mnt/cfg.json' ]; then
-    cp '/mnt/cfg.json' '/etc/'
+    mv '/mnt/cfg.json' '/etc/'
 fi
 
 umount /mnt/

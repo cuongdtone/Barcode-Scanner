@@ -27,8 +27,15 @@ def install_barcode(ssh_client):
     service_dir = '/etc/systemd/system/'
     script_dir = '/etc/'
     stdin, stdout, stderr = ssh_client.exec_command(f'sudo apt-get update')
+    stdout.channel.recv_exit_status()
     stdin, stdout, stderr = ssh_client.exec_command(f'sudo apt-get install python3-pip')
+    stdout.channel.recv_exit_status()
+    stdin, stdout, stderr = ssh_client.exec_command(f'sudo apt-get install python3-dev')
+    stdout.channel.recv_exit_status()
     stdin, stdout, stderr = ssh_client.exec_command(f'pip install flask')
+    stdout.channel.recv_exit_status()
+    stdin, stdout, stderr = ssh_client.exec_command(f'pip install evdev')
+    stdout.channel.recv_exit_status()
 
     for service in service_list:
         execute_file = f'{service}/{service}'
@@ -38,11 +45,19 @@ def install_barcode(ssh_client):
         print()
         sftp_client.put(execute_file, f'{script_dir}/{service}')
         sftp_client.put(service_file, f'{service_dir}/{service}.service')
+
+        ssh_client.exec_command(f'chmod +x {script_dir}/{service}')
+        stdout.channel.recv_exit_status()
         stdin, stdout, stderr = ssh_client.exec_command(f'systemctl enable {service}')
+        stdout.channel.recv_exit_status()
         print(stdout.read().decode())
 
     stdin, stdout, stderr = ssh_client.exec_command(f'systemctl daemon-reload')
+    stdout.channel.recv_exit_status()
+    stdin, stdout, stderr = ssh_client.exec_command(f'reboot -f')
+    print(f"Orangepi: Installed")
     sftp_client.close()
+    exit(0)
 
 def scan_network():
     subnet = getNetworkIp().split('.')

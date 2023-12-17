@@ -62,6 +62,13 @@ def devices_register():
     active_devices_dict.update({client_ip: {"name": device_id, "dir": None}})
     return "ok"
 
+@app.route('/select_dir', methods=['POST'])
+def select_dir():
+    data = request.get_json()
+    client_ip = data['device_ip']
+    active_devices_dict[client_ip]['dir'] = data['dir']
+    return "ok"
+
 @app.route('/devices', methods=['GET'])
 def devices():
     return jsonify(active_devices_list)

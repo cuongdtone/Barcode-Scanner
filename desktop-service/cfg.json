@@ -1,7 +1,7 @@
 {
     "ssid": "Phong Tro Ribo",
     "password": "0905114178",
-    "host": "192.168.1.8",
+    "host": "192.168.1.7",
     "port": "8080",
     "device_id": "Barcode_A"
 }

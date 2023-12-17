@@ -1,20 +1,15 @@
 #!/usr/bin/python3
 
-import keyboard
-from queue import Queue
-from threading import Thread
 import requests
-import base64
 import os
-import subprocess
-import shutil
 import json
+import evdev
+from evdev import InputDevice, categorize, ecodes
 
 json_file = "/etc/cfg.json"
 
 with open(json_file) as file:
     data_cfg = json.load(file)
-
 
 work_dir = '/data'
 media = f'{work_dir}/media'
@@ -26,12 +21,14 @@ host_name = data_cfg['host']
 port = data_cfg['port']
 desktop_url = f'http://{host_name}:{port}/'
 
+
 def move_to_usb(fpath):
     url = 'http://127.0.0.1:8080/addfile'
     data = {
         'fpath': fpath
     }
     response = requests.post(url, json=data)
+
 
 def request_barcode(barcode):
     print("Barcode: ", barcode)
@@ -51,9 +48,37 @@ def request_barcode(barcode):
             move_to_usb(save_path)
             print("File content saved successfully.")
         except:
+            print("Request error")
             pass
     else:
         print("Error occurred while sending the request.")
+
+
+def find_device():
+    while True:
+        devices = [InputDevice(path) for path in evdev.list_devices()]
+        barcode_device = None
+        for device in devices:
+            if "barcode" in device.name.lower():
+                barcode_device = device
+        if request_barcode is not None:
+            return barcode_device
+
+
+def barcode_scanner(barcode_device):
+    barcode_device.grab()
+    barcode = ""
+    for event in barcode_device.read_loop():
+        if event.type == ecodes.EV_KEY:
+            data = categorize(event)
+            if data.keystate == 1 and data.scancode != ecodes.KEY_RESERVED:
+                if data.scancode == ecodes.KEY_ENTER:
+                    request_barcode(barcode)
+                    barcode = ""
+                else:
+                    barcode += data.keycode[4:]
+    print("End")
+
 
 def key_event(event):
     global barcode_buff
@@ -65,13 +90,19 @@ def key_event(event):
             barcode_buff += event.name
 
 print('Barcode Scanner: start')
-try:
-    keyboard.on_press(key_event)
-    keyboard.wait()
-except OSError as e:
-    if e.errno == 19:
-        print("Barcode Scanner: Device disconnected.")
-    else:
-        print("Barcode Scanner: An error occurred:", e)
 
-exit(1)
+device = find_device()
+print(device.name)
+while True:
+    try:
+        barcode_scanner(device)
+        device.ungrab()
+    except:
+        try:
+            device.ungrab()
+        except:
+            pass
+        print('Barcode Scanner: Refind device')
+        device = find_device()
+
+

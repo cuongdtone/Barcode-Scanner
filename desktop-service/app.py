@@ -105,7 +105,18 @@ class App(customtkinter.CTk):
         self.textbox = customtkinter.CTkTextbox(self, width=250)
         self.textbox.grid(row=0, column=1, padx=0, pady=0, sticky="nsew")
 
+        self.button = customtkinter.CTkButton(self, text="Reload", width=100, height=24)
+        self.button.configure(command=lambda: self.reload())
+        self.button.grid(row=1, column=2, pady=(0, 10), padx=5, sticky="e")
+
         Thread(target = self.stream_text).start()
+
+    def reload(self):
+        for i in self.devices:
+            self.scrollable_label_button_frame.remove_item(i[0])
+        self.devices =  self.request_active_device_list()
+        for i in self.devices:  # add items with images
+            self.scrollable_label_button_frame.add_item(*i[:2])
     
     def request_active_device_list(self):
         """
@@ -135,18 +146,23 @@ class App(customtkinter.CTk):
     def label_button_frame_event(self, item):
         path = customtkinter.filedialog.askdirectory(title="Select a folder")
         if path is not None:
-            print(path)
-            print(f"Barcode button frame clicked: {item}")
+            print('Request')
+            url = 'http://127.0.0.1:8080/select_dir'
+            print(url)
+            response = requests.post(url, json={'device_ip': item, 'dir': path})
+            self.textbox.insert("0.0", f"Selected {path} [{item}] [{response.status_code}]\n")
+
+    def upload(self, item, path):
+        self.textbox.insert("0.0", f"Uploading {path} to [{item}] ....\n")
+        url = f'http://{item}:8080/upload'
+        with open(path, 'rb') as file:
+            response = requests.post(url, files={'file': file})
+        self.textbox.insert("0.0", f"Uploaded {path} to [{item}][{response.status_code}]!!\n")
 
     def upload_button_frame_event(self, item):
-        file_path = customtkinter.filedialog.askopenfilename(title="Select a file", filetypes=(("Text files", "*.txt"), ("All files", "*.*")))
+        file_path = customtkinter.filedialog.askopenfilename(title="Select a file", filetypes=(("All files", "*.*"), ("All files", "*.*")))
         if file_path is not None:
-            print(file_path)
-            url = f'http://{item}:8080/upload'
-            with open(file_path, 'rb') as file:
-                response = requests.post(url, files={'file': file})
-
-            print(f"Upload button frame clicked: {item} - {response.status_code}")
+            Thread(target=self.upload, args=(item, file_path)).start()
 
     def rename_button_frame_event(self, item):
         print(f"Rename button frame clicked: {item}")

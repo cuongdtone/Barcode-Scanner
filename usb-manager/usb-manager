@@ -12,6 +12,7 @@ from threading import Thread
 
 work_dir = '/data'
 media_dir = f'{work_dir}/media'
+os.makedirs(media_dir, exist_ok=True)
 usb_backingfile = os.path.join(work_dir, 'usb_partition.img')
 
 def move_file_to_usb(fpath):
