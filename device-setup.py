@@ -26,11 +26,11 @@ def install_barcode(ssh_client):
     service_list = ['barcode-scanner', 'config-manager', 'usb-gadget-msc', 'usb-manager', 'wifi-manager']
     service_dir = '/etc/systemd/system/'
     script_dir = '/etc/'
-    stdin, stdout, stderr = ssh_client.exec_command(f'sudo apt-get update')
+    stdin, stdout, stderr = ssh_client.exec_command(f'sudo apt-get -y update')
     stdout.channel.recv_exit_status()
-    stdin, stdout, stderr = ssh_client.exec_command(f'sudo apt-get install python3-pip')
+    stdin, stdout, stderr = ssh_client.exec_command(f'sudo apt-get install -y python3-pip')
     stdout.channel.recv_exit_status()
-    stdin, stdout, stderr = ssh_client.exec_command(f'sudo apt-get install python3-dev')
+    stdin, stdout, stderr = ssh_client.exec_command(f'sudo apt-get install -y python3-dev')
     stdout.channel.recv_exit_status()
     stdin, stdout, stderr = ssh_client.exec_command(f'pip install flask')
     stdout.channel.recv_exit_status()

@@ -59,6 +59,7 @@ def find_device():
         devices = [InputDevice(path) for path in evdev.list_devices()]
         barcode_device = None
         for device in devices:
+            print(device.name)
             if "barcode" in device.name.lower():
                 barcode_device = device
         if request_barcode is not None:
