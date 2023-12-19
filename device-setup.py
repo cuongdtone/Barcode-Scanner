@@ -21,6 +21,11 @@ def run_ssh_cmd(ssh_client:  paramiko.SSHClient, cmd: str):
 def push_file(sftp_client, file, remote_path):
     sftp_client.put(file, remote_path)
 
+def wait_ssh(stdout):
+    for line in stdout:
+        print(line.strip())
+    stdout.channel.recv_exit_status()
+
 
 def install_barcode(ssh_client):
     sftp_client = ssh_client.open_sftp()
@@ -28,20 +33,18 @@ def install_barcode(ssh_client):
     service_dir = '/etc/systemd/system/'
     script_dir = '/etc/'
     stdin, stdout, stderr = ssh_client.exec_command(f'sudo apt-get -y update')
-    stdout.channel.recv_exit_status()
+    wait_ssh(stdout)
     stdin, stdout, stderr = ssh_client.exec_command(f'sudo apt-get install -y python3-pip')
-    stdout.channel.recv_exit_status()
+    wait_ssh(stdout)
     stdin, stdout, stderr = ssh_client.exec_command(f'sudo apt-get install -y python3-dev')
-    stdout.channel.recv_exit_status()
+    wait_ssh(stdout)
     stdin, stdout, stderr = ssh_client.exec_command(f'pip install flask')
-    stdout.channel.recv_exit_status()
+    wait_ssh(stdout)
     stdin, stdout, stderr = ssh_client.exec_command(f'pip install evdev')
-    stdout.channel.recv_exit_status()
+    wait_ssh(stdout)
     stdin, stdout, stderr = ssh_client.exec_command(f'pip install requests')
-    stdout.channel.recv_exit_status()
+    wait_ssh(stdout)
 
-
-    
 
     for service in service_list:
         execute_file = f'{service}/{service}'
@@ -59,7 +62,7 @@ def install_barcode(ssh_client):
         print(stdout.read().decode())
 
     stdin, stdout, stderr = ssh_client.exec_command(f'systemctl daemon-reload')
-    stdout.channel.recv_exit_status()
+    wait_ssh(stdout)
     stdin, stdout, stderr = ssh_client.exec_command(f'reboot -f')
     print(f"Orangepi: Installed")
     sftp_client.close()
