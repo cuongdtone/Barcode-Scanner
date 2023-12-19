@@ -102,7 +102,7 @@ class App(customtkinter.CTk):
             self.scrollable_label_button_frame.add_item(*i[:2])
        
         # create textbox
-        self.textbox = customtkinter.CTkTextbox(self, width=250)
+        self.textbox = customtkinter.CTkTextbox(self, width=450)
         self.textbox.grid(row=0, column=1, padx=0, pady=0, sticky="nsew")
 
         self.button = customtkinter.CTkButton(self, text="Reload", width=100, height=24)
@@ -126,19 +126,22 @@ class App(customtkinter.CTk):
         ]
         """
         try:
-            url = 'http://127.0.0.1:8080/devices'
+            url = 'http://127.0.0.1:8081/devices'
             return requests.get(url).json()
         except:
             return []
 
     def stream_text(self):
-        url = 'http://127.0.0.1:8080/stream'
+        url = 'http://127.0.0.1:8081/stream'
         response = requests.get(url, stream=True)
         for line in response.iter_lines():
             if self.window_closed:
                 break
             if line:
-                self.textbox.insert("0.0", line.decode('utf-8') + "\n")
+                text_line = line.decode('utf-8')
+                if "Device" in text_line:
+                    self.reload()
+                self.textbox.insert("0.0", text_line + "\n")
 
     def backend_task(self):
         pass
@@ -147,7 +150,7 @@ class App(customtkinter.CTk):
         path = customtkinter.filedialog.askdirectory(title="Select a folder")
         if path is not None:
             print('Request')
-            url = 'http://127.0.0.1:8080/select_dir'
+            url = 'http://127.0.0.1:8081/select_dir'
             print(url)
             response = requests.post(url, json={'device_ip': item, 'dir': path})
             self.textbox.insert("0.0", f"Selected {path} [{item}] [{response.status_code}]\n")
@@ -156,8 +159,15 @@ class App(customtkinter.CTk):
         self.textbox.insert("0.0", f"Uploading {path} to [{item}] ....\n")
         url = f'http://{item}:8080/upload'
         with open(path, 'rb') as file:
-            response = requests.post(url, files={'file': file})
-        self.textbox.insert("0.0", f"Uploaded {path} to [{item}][{response.status_code}]!!\n")
+            try:
+                response = requests.post(url, files={'file': file})
+            except:
+                self.textbox.insert("0.0", f"Cannot upload: [{item}][{response.status_code}]!!\n")
+
+        if response.status_code == 200:
+            self.textbox.insert("0.0", f"Uploaded {path} to [{item}][{response.status_code}]!!\n")
+        else:
+            self.textbox.insert("0.0", f"Device offline: [{item}][{response.status_code}]!!\n")
 
     def upload_button_frame_event(self, item):
         file_path = customtkinter.filedialog.askopenfilename(title="Select a file", filetypes=(("All files", "*.*"), ("All files", "*.*")))
@@ -173,6 +183,11 @@ class App(customtkinter.CTk):
 
     def destroy(self):
         self.window_closed = True
+        url = 'http://127.0.0.1:8081/shutdown'
+        try:
+            response = requests.post(url)
+        except:
+            pass
         super().destroy()
 
 if __name__ == "__main__":

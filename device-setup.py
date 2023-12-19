@@ -2,6 +2,7 @@
 import paramiko
 import socket
 import os
+import concurrent.futures
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
@@ -59,32 +60,42 @@ def install_barcode(ssh_client):
     sftp_client.close()
     exit(0)
 
+
+def device_setup(ip):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(1)
+    result = sock.connect_ex((ip, 22))
+    if result == 0:
+        print(f"{ip} SSH openning ..")
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(ip, port=22, username='root', password='orangepi')
+            ##################################################################
+            print(f"Orangepi: {ip}.")
+            install_barcode(ssh)
+            print(f"Orangepi: {ip}: Installed")
+            ##################################################################
+            ssh.close()
+        except Exception as e:
+            print(f"SSH ip: {ip}: failed")
+        sock.close()
+
 def scan_network():
     subnet = getNetworkIp().split('.')
     subnet.pop()
     subnet = ".".join(subnet)
-    print("Subnet scanning: ", subnet)
-    for i in range(1, 255):
-        ip = f'{subnet}.{i}'
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)
-
-        result = sock.connect_ex((ip, 22))
-        if result == 0:
-            print(f"{ip} SSH openning ..")
-            try:
-                ssh = paramiko.SSHClient()
-                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                ssh.connect(ip, port=22, username='root', password='orangepi')
-                ##################################################################
-                print(f"Orangepi: {ip}.")
-                install_barcode(ssh)
-                print(f"Orangepi: {ip}: Installed")
-                ##################################################################
-                ssh.close()
-            except Exception as e:
-                print(f"SSH ip: {ip}: failed")
-
-        sock.close()
+    print("Subnet scanning:", subnet)
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        futures = []
+        for i in range(1, 255):
+            ip = f'{subnet}.{i}'
+            futures.append(executor.submit(device_setup, ip))
+        
+        # Gắn kết kết quả của các tác vụ
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            # Xử lý kết quả nếu cần thiết
 
 scan_network()

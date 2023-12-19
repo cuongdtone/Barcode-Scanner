@@ -20,6 +20,15 @@ barcode_buff = ''
 host_name = data_cfg['host']
 port = data_cfg['port']
 desktop_url = f'http://{host_name}:{port}/'
+logger_url = f'http://{host_name}:{port}/logger'
+device_exactly_name = None if 'input_dev' not in data_cfg.keys() else data_cfg['input_dev']
+
+
+def log(msg):
+    try:
+        response = requests.post(logger_url, json={'msg': msg})
+    except:
+        pass
 
 
 def move_to_usb(fpath):
@@ -55,18 +64,33 @@ def request_barcode(barcode):
 
 
 def find_device():
+    c = 0
+    previ_dev = ""
     while True:
-        devices = [InputDevice(path) for path in evdev.list_devices()]
         barcode_device = None
         keyboard_devie = None
-        for device in devices:
+        device_list = []
+        for path in evdev.list_devices():
+            device = InputDevice(path)
             if device is None:
                 continue
+            device_list.append(path)
+
+            if device_exactly_name is not None:
+                if device_exactly_name == path:
+                    log(f'Select input: {device_exactly_name}')
+                    return device
             if "barcode" in device.name.lower():
                 barcode_device = device
 
             if "keyboard" in device.name.lower():
                 keyboard_devie = device
+
+        d = '|'.join(device_list)
+        if d != previ_dev:
+            log(d)
+            previ_dev = d
+
             
         if barcode_device is not None:
             return barcode_device
@@ -112,7 +136,7 @@ while True:
             device.ungrab()
         except:
             pass
-        print('Barcode Scanner: Refind device')
+        # print('Barcode Scanner: Refind device')
         device = find_device()
 
 

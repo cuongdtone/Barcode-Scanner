@@ -1,6 +1,8 @@
 import json
 import time
 import os
+import requests
+from threading import Thread
 
 from flask import Flask, request, jsonify, send_file, Response
 from queue import Queue
@@ -9,8 +11,37 @@ from datetime import datetime
 app = Flask(__name__)
 
 active_devices_dict = {}
-active_devices_list = []
 barcode_stream = Queue(maxsize=100)
+
+def alive_thread():
+    global active_devices_dict
+    while True:
+        off_list = []
+        for client_ip in active_devices_dict.keys():
+
+            url = f'http://{client_ip}:8080/alive'
+            now = datetime.now().strftime("%Y-%m-%d %H:%M")
+            try:
+                respone = requests.get(url, timeout=1)
+                if respone.status_code == 200:
+                    active_devices_dict[client_ip]['alive'] = True
+                    # barcode_stream.put(f'{now} [{client_ip}] Device online')
+                else:
+                    if active_devices_dict[client_ip]['alive'] == True:
+                        active_devices_dict[client_ip]['alive'] = False
+                        barcode_stream.put(f'{now} [{client_ip}] Device offline')
+                    off_list.append(client_ip)
+
+            except:
+                if active_devices_dict[client_ip]['alive'] == False:
+                    active_devices_dict[client_ip]['alive'] = False
+                    barcode_stream.put(f'{now} [{client_ip}] Device offline')
+                off_list.append(client_ip)
+        for clip in off_list:
+            active_devices_dict[clip]['name'] = 'Offline'
+        time.sleep(5)
+
+Thread(target=alive_thread).start()
 
 @app.route('/barcode', methods=['POST'])
 def barcode():
@@ -39,8 +70,15 @@ def barcode():
         return "ok"
     return "ok"
 
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+    if request.remote_addr == '127.0.0.1':
+        os.kill(os.getpid(), 9)
+        return 'Server is shutting down...'
+    else:
+        return 'Permission denied.'
 
-@app.route('/logger', methods=['GET'])
+@app.route('/logger', methods=['POST'])
 def logger():
     data = request.get_json()
     msg = data['msg']
@@ -54,12 +92,14 @@ def devices_register():
     data = request.get_json()
     device_id = data['device_id']
     client_ip = request.remote_addr
-    for a in active_devices_list:
-        a_device_id, a_client_ip = a
-        if a_client_ip == client_ip:
-            return "ok"
-    active_devices_list.append([device_id, client_ip])
-    active_devices_dict.update({client_ip: {"name": device_id, "dir": None}})
+    if client_ip in active_devices_dict.keys():
+        return 'ok'
+    
+    client_ip = request.remote_addr
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    barcode_stream.put(f'{now} [{client_ip}] New Device register !!')
+
+    active_devices_dict.update({client_ip: {"name": device_id, "dir": None, "alive": True}})
     return "ok"
 
 @app.route('/select_dir', methods=['POST'])
@@ -71,6 +111,11 @@ def select_dir():
 
 @app.route('/devices', methods=['GET'])
 def devices():
+    active_devices_list = []
+    for client_ip, value in active_devices_dict.items():
+        device_id = value['name']
+        status = value['alive']
+        active_devices_list.append([device_id, client_ip, status])
     return jsonify(active_devices_list)
 
 @app.route('/stream')
@@ -84,4 +129,4 @@ def stream_data():
     return Response(generate(), mimetype='text/plain')
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    app.run(host='0.0.0.0', port=8081, debug=False)
