@@ -37,6 +37,11 @@ def install_barcode(ssh_client):
     stdout.channel.recv_exit_status()
     stdin, stdout, stderr = ssh_client.exec_command(f'pip install evdev')
     stdout.channel.recv_exit_status()
+    stdin, stdout, stderr = ssh_client.exec_command(f'pip install requests')
+    stdout.channel.recv_exit_status()
+
+
+    
 
     for service in service_list:
         execute_file = f'{service}/{service}'
