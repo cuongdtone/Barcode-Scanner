@@ -2,8 +2,8 @@
 
 cd desktop-service
 
-REM Chạy luồng 1
+REM
 start pythonw server.py
 
-REM Chạy luồng 2
+REM
 start pythonw  app.py

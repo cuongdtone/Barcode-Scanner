@@ -20,4 +20,4 @@ Kết nối PC với mạng LAN đã dùng cho orange pi và chạy cài đặt 
 ### 1. Đưa file cfg.json vào USB driver với việc hiệu chỉnh các cài đặt wifi và mạng trong đó
 ### 2. Khởi động PC app:
 ```pc-app.bat```
-### 3. Khởi động lại Orange pi (nhớ cắm sẵn máy quét barcode)
+### 3. Khởi động lại Orange pi

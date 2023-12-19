@@ -5,7 +5,7 @@ import time
 
 work_dir = '/data'
 usb_backingfile = os.path.join(work_dir, 'usb_partition.img')
-usb_size = 5120 # MB
+usb_size = 1024 # MB
 mode = 0o666
 
 
