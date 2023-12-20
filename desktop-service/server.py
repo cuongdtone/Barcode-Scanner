@@ -39,7 +39,7 @@ def alive_thread():
                 off_list.append(client_ip)
         for clip in off_list:
             active_devices_dict[clip]['name'] = 'Offline'
-        time.sleep(5)
+        time.sleep(1)
 
 Thread(target=alive_thread).start()
 
