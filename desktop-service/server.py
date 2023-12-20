@@ -79,6 +79,8 @@ def barcode():
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
+    for k in active_devices_dict.keys():
+        active_devices_dict[k]['alive'] = False
     with open(cache_path, 'w') as file:
         json.dump(active_devices_dict, file)
     if request.remote_addr == '127.0.0.1':
