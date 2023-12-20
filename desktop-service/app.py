@@ -20,6 +20,9 @@ class ScrollableLabelButtonFrame(customtkinter.CTkScrollableFrame):
         self.radiobutton_variable = customtkinter.StringVar()
         self.label_list = []
         self.button_list = []
+        self.button2_list = []
+        self.ip_label_list = []
+        
 
     def add_item(self, item, ip):
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -54,6 +57,8 @@ class ScrollableLabelButtonFrame(customtkinter.CTkScrollableFrame):
 
         self.label_list.append(name_label)
         self.button_list.append(button)
+        self.button2_list.append(button2)
+        self.ip_label_list.append(ip_label)
 
     def update_name_item(self, item, new_item):
         for label in self.label_list:
@@ -64,12 +69,16 @@ class ScrollableLabelButtonFrame(customtkinter.CTkScrollableFrame):
                 return
 
     def remove_item(self, item):
-        for label, button in zip(self.label_list, self.button_list):
+        for label, button, button2, ip_label in zip(self.label_list, self.button_list, self.button2_list, self.ip_label_list):
             if item == label.cget("text"):
                 label.destroy()
                 button.destroy()
+                button2.destroy()
+                ip_label.destroy()
                 self.label_list.remove(label)
                 self.button_list.remove(button)
+                self.button2_list.remove(button2)
+                self.ip_label_list.remove(ip_label)
                 return
 
 
