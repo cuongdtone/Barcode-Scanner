@@ -157,7 +157,7 @@ class App(customtkinter.CTk):
 
     def label_button_frame_event(self, item):
         path = customtkinter.filedialog.askdirectory(title="Select a folder")
-        if path is not None:
+        if path is not None and os.path.exists(path):
             print('Request')
             url = 'http://127.0.0.1:8081/select_dir'
             print(url)
@@ -180,7 +180,7 @@ class App(customtkinter.CTk):
 
     def upload_button_frame_event(self, item):
         file_path = customtkinter.filedialog.askopenfilename(title="Select a file", filetypes=(("All files", "*.*"), ("All files", "*.*")))
-        if file_path is not None:
+        if file_path is not None and os.path.exists(file_path):
             Thread(target=self.upload, args=(item, file_path)).start()
 
     def rename_button_frame_event(self, item):
