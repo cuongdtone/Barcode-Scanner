@@ -3,7 +3,7 @@
 cd desktop-service
 
 REM
-start python server.py
+start pythonw server.py
 
 REM
 start pythonw  app.py
