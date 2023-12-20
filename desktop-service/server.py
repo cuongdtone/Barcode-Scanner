@@ -115,7 +115,8 @@ def devices():
     for client_ip, value in active_devices_dict.items():
         device_id = value['name']
         status = value['alive']
-        active_devices_list.append([device_id, client_ip, status])
+        if status is True:
+            active_devices_list.append([device_id, client_ip, status])
     return jsonify(active_devices_list)
 
 @app.route('/stream')
