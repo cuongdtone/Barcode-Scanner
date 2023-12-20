@@ -66,8 +66,6 @@ def install_barcode(ssh_client):
     stdin, stdout, stderr = ssh_client.exec_command(f'reboot -f')
     print(f"Orangepi: Installed")
     sftp_client.close()
-    exit(0)
-
 
 def device_setup(ip):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -95,7 +93,7 @@ def scan_network():
     subnet = ".".join(subnet)
     print("Subnet scanning:", subnet)
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
         futures = []
         for i in range(1, 255):
             ip = f'{subnet}.{i}'
