@@ -31,14 +31,14 @@ while True:
         if os.path.exists('/etc/wifi_connected'):
             os.remove('/etc/wifi_connected')
         print(os.system(f'nmcli d wifi connect "{ssid}" password "{password}"'))
-        time.sleep(2)
+        time.sleep(1)
     else:
         os.system('touch /etc/wifi_connected')
         try:
             response = requests.post(desktop_url, json={'device_id': device_id})
             if response.status_code == 200:
-                time.sleep(40)
-            else:
                 time.sleep(10)
+            else:
+                time.sleep(1)
         except:
             pass
