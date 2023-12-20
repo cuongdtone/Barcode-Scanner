@@ -3,6 +3,7 @@ import time
 import os
 import requests
 from threading import Thread
+import json
 
 from flask import Flask, request, jsonify, send_file, Response
 from queue import Queue
@@ -11,6 +12,11 @@ from datetime import datetime
 app = Flask(__name__)
 
 active_devices_dict = {}
+cache_path = 'cache_active_devices_dict.json'
+if os.path.exists(cache_path):
+    with open(cache_path, 'r') as file:
+        active_devices_dict = json.load(file)
+
 barcode_stream = Queue(maxsize=100)
 
 def alive_thread():
@@ -73,6 +79,8 @@ def barcode():
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
+    with open(cache_path, 'w') as file:
+        json.dump(active_devices_dict, file)
     if request.remote_addr == '127.0.0.1':
         os.kill(os.getpid(), 9)
         return 'Server is shutting down...'
