@@ -24,8 +24,9 @@ def alive_thread():
             try:
                 respone = requests.get(url, timeout=1)
                 if respone.status_code == 200:
-                    active_devices_dict[client_ip]['alive'] = True
-                    # barcode_stream.put(f'{now} [{client_ip}] Device online')
+                    if active_devices_dict[client_ip]['alive'] == False:
+                        active_devices_dict[client_ip]['alive'] = True
+                        barcode_stream.put(f'{now} [{client_ip}] Device online')
                 else:
                     if active_devices_dict[client_ip]['alive'] == True:
                         active_devices_dict[client_ip]['alive'] = False
@@ -33,7 +34,7 @@ def alive_thread():
                     off_list.append(client_ip)
 
             except:
-                if active_devices_dict[client_ip]['alive'] == False:
+                if active_devices_dict[client_ip]['alive'] == True:
                     active_devices_dict[client_ip]['alive'] = False
                     barcode_stream.put(f'{now} [{client_ip}] Device offline')
                 off_list.append(client_ip)

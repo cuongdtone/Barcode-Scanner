@@ -22,7 +22,7 @@ if not os.path.exists(usb_backingfile):
     run_device_command(f'dd if=/dev/zero of={usb_backingfile} bs=1M count={usb_size} status=progress conv=fsync')
     out = run_device_command(f'mkdosfs {usb_backingfile} -F 32 -I')
     if 'mkfs.fat' not in out:
-        run_device_command('echo "USB-MSC Error: Cannot create partition" >> /data/usb-msc.log')
+        os.system('echo "USB-MSC Error: Cannot create partition" >> /data/usb-msc.log')
         exit(1)
 
 time.sleep(5)
