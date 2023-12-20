@@ -37,8 +37,8 @@ def alive_thread():
                     active_devices_dict[client_ip]['alive'] = False
                     barcode_stream.put(f'{now} [{client_ip}] Device offline')
                 off_list.append(client_ip)
-        for clip in off_list:
-            active_devices_dict[clip]['name'] = 'Offline'
+        # for clip in off_list:
+        #     active_devices_dict[clip]['name'] = 'Offline'
         time.sleep(1)
 
 Thread(target=alive_thread).start()
