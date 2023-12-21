@@ -22,30 +22,32 @@ barcode_stream = Queue(maxsize=100)
 def alive_thread():
     global active_devices_dict
     while True:
+        active_devices_dict_temp = active_devices_dict.copy()
         off_list = []
-        for client_ip in active_devices_dict.keys():
+        for client_ip in active_devices_dict_temp.keys():
 
             url = f'http://{client_ip}:8080/alive'
             now = datetime.now().strftime("%Y-%m-%d %H:%M")
             try:
                 respone = requests.get(url, timeout=1)
                 if respone.status_code == 200:
-                    if active_devices_dict[client_ip]['alive'] == False:
-                        active_devices_dict[client_ip]['alive'] = True
+                    if active_devices_dict_temp[client_ip]['alive'] == False:
+                        active_devices_dict_temp[client_ip]['alive'] = True
                         barcode_stream.put(f'{now} [{client_ip}] Device online')
                 else:
-                    if active_devices_dict[client_ip]['alive'] == True:
-                        active_devices_dict[client_ip]['alive'] = False
+                    if active_devices_dict_temp[client_ip]['alive'] == True:
+                        active_devices_dict_temp[client_ip]['alive'] = False
                         barcode_stream.put(f'{now} [{client_ip}] Device offline')
                     off_list.append(client_ip)
 
             except:
-                if active_devices_dict[client_ip]['alive'] == True:
-                    active_devices_dict[client_ip]['alive'] = False
+                if active_devices_dict_temp[client_ip]['alive'] == True:
+                    active_devices_dict_temp[client_ip]['alive'] = False
                     barcode_stream.put(f'{now} [{client_ip}] Device offline')
                 off_list.append(client_ip)
         # for clip in off_list:
         #     active_devices_dict[clip]['name'] = 'Offline'
+        active_devices_dict = active_devices_dict_temp
         time.sleep(1)
 
 Thread(target=alive_thread).start()
