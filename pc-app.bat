@@ -1,9 +1,7 @@
 @echo off
 
-cd desktop-service
+REM
+start output\server\server.exe
 
 REM
-start pythonw server.py
-
-REM
-start pythonw  app.py
+start output\app\app.exe
