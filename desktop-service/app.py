@@ -180,7 +180,7 @@ class App(customtkinter.CTk):
 
     def upload_button_frame_event(self, item):
         file_path = customtkinter.filedialog.askopenfilename(title="Select a file", filetypes=(("All files", "*.*"), ("All files", "*.*")))
-        if file_path is not None and os.path.exists(file_path):
+        if os.path.exists(file_path):
             Thread(target=self.upload, args=(item, file_path)).start()
 
     def rename_button_frame_event(self, item):

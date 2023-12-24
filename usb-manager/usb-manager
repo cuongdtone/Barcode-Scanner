@@ -16,18 +16,29 @@ os.makedirs(media_dir, exist_ok=True)
 usb_backingfile = os.path.join(work_dir, 'usb_partition.img')
 
 def move_file_to_usb(fpath):
-    try:
+    try: #todo: convert to subproccess for system call
         os.system('modprobe g_mass_storage -r')
+        time.sleep(0.02)
         os.system(f'mount {usb_backingfile} /mnt/')
+        time.sleep(0.02)
         os.system(f'rm -rf /mnt/*')
+        time.sleep(0.02)
         dest_path = os.path.join('/mnt/', os.path.basename(fpath))
+        time.sleep(0.02)
         shutil.copy2(fpath, dest_path)
+        time.sleep(0.02)
         os.remove(fpath)
         os.system(f'umount /mnt/')
+        time.sleep(0.02)
         os.system(f'modprobe g_mass_storage file={usb_backingfile} stall=0 removable=1')
+        time.sleep(0.02)
     except:
+        time.sleep(0.02)
         os.system(f'umount /mnt/')
+        time.sleep(0.02)
         os.system(f'modprobe g_mass_storage file={usb_backingfile} stall=0 removable=1')
+        time.sleep(0.02)
+
 
 
 class USBSingle:
@@ -41,6 +52,7 @@ class USBSingle:
                 while not self.fpath_queue.empty():
                     fpath = self.fpath_queue.get()
                     move_file_to_usb(fpath)
+                    time.sleep(0.2)
             except:
                 print("Usb-server: error")
             time.sleep(1)        

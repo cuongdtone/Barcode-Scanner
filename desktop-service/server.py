@@ -30,7 +30,7 @@ def alive_thread():
             url = f'http://{client_ip}:8080/alive'
             now = datetime.now().strftime("%Y-%m-%d %H:%M")
             try:
-                respone = requests.get(url, timeout= 2)
+                respone = requests.get(url, timeout=3)
                 if respone.status_code == 200:
                     if active_devices_dict_temp[client_ip]['alive'] == False:
                         active_devices_dict_temp[client_ip]['alive'] = True
