@@ -17,10 +17,11 @@ if os.path.exists(cache_path):
     with open(cache_path, 'r') as file:
         active_devices_dict = json.load(file)
 
-barcode_stream = Queue(maxsize=100)
+barcode_stream = Queue(maxsize=200)
 
 def alive_thread():
     global active_devices_dict
+    countMiss = 0
     while True:
         active_devices_dict_temp = active_devices_dict.copy()
         off_list = []
@@ -29,22 +30,48 @@ def alive_thread():
             url = f'http://{client_ip}:8080/alive'
             now = datetime.now().strftime("%Y-%m-%d %H:%M")
             try:
-                respone = requests.get(url, timeout=1)
+                respone = requests.get(url, timeout= 2)
                 if respone.status_code == 200:
                     if active_devices_dict_temp[client_ip]['alive'] == False:
                         active_devices_dict_temp[client_ip]['alive'] = True
                         barcode_stream.put(f'{now} [{client_ip}] Device online')
+                        countMiss = 0
                 else:
                     if active_devices_dict_temp[client_ip]['alive'] == True:
                         active_devices_dict_temp[client_ip]['alive'] = False
-                        barcode_stream.put(f'{now} [{client_ip}] Device offline')
-                    off_list.append(client_ip)
+                        
+                        countMiss = countMiss + 1
+                    if countMiss > 100 :
+                        barcode_stream.put(f'{now} [{client_ip}] Device offline222')
+                        off_list.append(client_ip)
+                        countMiss = 0
 
-            except:
-                if active_devices_dict_temp[client_ip]['alive'] == True:
-                    active_devices_dict_temp[client_ip]['alive'] = False
-                    barcode_stream.put(f'{now} [{client_ip}] Device offline')
-                off_list.append(client_ip)
+            
+            except requests.exceptions.ReadTimeout:
+                pass
+                #countMiss = countMiss + 1
+                #if countMiss > 5 :
+                 #   countMiss = 0
+                  #  if active_devices_dict_temp[client_ip]['alive'] == True:
+                   #     active_devices_dict_temp[client_ip]['alive'] = False
+                    #    barcode_stream.put(f' {respone} : {now} [{client_ip}] Device offline : Time Out')
+                    #off_list.append(client_ip)
+            except requests.exceptions.ConnectionError:
+                countMiss = countMiss + 1
+                if countMiss > 2 :
+                    countMiss = 0
+                    if active_devices_dict_temp[client_ip]['alive'] == True:
+                        active_devices_dict_temp[client_ip]['alive'] = False
+                        barcode_stream.put(f'{now} [{client_ip}] Device offline : Connect Error')
+                    off_list.append(client_ip)
+            except :
+                pass
+                #countMiss = countMiss + 1
+                #if countMiss > 10 :
+                #    if active_devices_dict_temp[client_ip]['alive'] == True:
+                #        active_devices_dict_temp[client_ip]['alive'] = False
+                #        barcode_stream.put(f' {respone} : {now} [{client_ip}] Device offline 111')
+                 #   off_list.append(client_ip)
         # for clip in off_list:
         #     active_devices_dict[clip]['name'] = 'Offline'
         active_devices_dict = active_devices_dict_temp
@@ -106,11 +133,13 @@ def devices_register():
     device_id = data['device_id']
     client_ip = request.remote_addr
     if client_ip in active_devices_dict.keys():
+        active_devices_dict[client_ip]['name'] = device_id
+        active_devices_dict[client_ip]['alive'] = True
         return 'ok'
     
     client_ip = request.remote_addr
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    barcode_stream.put(f'{now} [{client_ip}] New Device register !!')
+    barcode_stream.put(f'{now} [{client_ip}] New Device register 111 !!')
 
     active_devices_dict.update({client_ip: {"name": device_id, "dir": None, "alive": True}})
     return "ok"
