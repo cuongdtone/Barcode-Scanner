@@ -6,6 +6,11 @@ import json
 import evdev
 from evdev import InputDevice, categorize, ecodes
 from multiprocessing import Process
+from threading import Thread
+from queue import Queue
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+import time
 
 json_file = "/etc/cfg.json"
 
@@ -39,9 +44,11 @@ def move_to_usb(fpath):
     }
     response = requests.post(url, json=data)
 
+request_flag = False
 
 def request_barcode(barcode):
-    print("Barcode: ", barcode)
+    global request_flag
+    request_flag = True
     url = desktop_url + 'barcode'
 
     data = {
@@ -57,50 +64,15 @@ def request_barcode(barcode):
                     file.write(response.content)
                 print(f"Received file: {attachment_filename}")
                 move_to_usb(save_path)
-                print("File content saved successfully.")
+                log(f"Barcode USB: push successfully {attachment_filename}")
             except:
-                print("Request error")
+                #print("Not attachment")
                 pass
         else:
             print("Error occurred while sending the request.")
     except:
         pass
-
-
-def find_device():
-    c = 0
-    previ_dev = ""
-    while True:
-        barcode_device = None
-        keyboard_devie = None
-        device_list = []
-        for path in evdev.list_devices():
-            device = InputDevice(path)
-            if device is None:
-                continue
-            device_list.append(path)
-
-            if device_exactly_name is not None:
-                if device_exactly_name == path:
-                    log(f'Select input: {device_exactly_name}')
-                    return device
-            if "barcode" in device.name.lower():
-                barcode_device = device
-
-            if "keyboard" in device.name.lower():
-                keyboard_devie = device
-
-        d = '|'.join(device_list)
-        if d != previ_dev:
-            log(d)
-            previ_dev = d
-
-            
-        if barcode_device is not None:
-            return barcode_device
-
-        if keyboard_devie is not None:
-            return keyboard_devie
+    request_flag = False
 
 
 def barcode_scanner(barcode_device):
@@ -111,14 +83,19 @@ def barcode_scanner(barcode_device):
             data = categorize(event)
             if data.keystate == 1 and data.scancode != ecodes.KEY_RESERVED:
                 if data.scancode == ecodes.KEY_ENTER:
-                    request_barcode(barcode)
+                    print('Barcode: ', barcode, barcode_device)
+                    if request_flag is False:
+                        Thread(target=request_barcode, args=(barcode, )).start()
+                    else:
+                        log('Wait ...')
                     barcode = ""
                 else:
                     barcode += data.keycode[4:]
     print("End")
 
 
-def main(barcode_device_path):
+def main_barcode(barcode_device_path):
+    log(f"Device listenning: {barcode_device_path}")
     barcode_device = InputDevice(barcode_device_path)
     if "sunxi-ir" in barcode_device.name.lower(): 
         return
@@ -127,51 +104,38 @@ def main(barcode_device_path):
         barcode_scanner(barcode_device)
         barcode_device.ungrab()
     except:
-        pass
-
+        try:
+            barcode_device.ungrab()
+        except:
+            pass
+    log(f"Device remove: {barcode_device_path}")
 
 print('Barcode Scanner: start')
-
-# device = find_device()
-# print(device.name)
-# while True:
-#     try:
-#         barcode_scanner(device)
-#         device.ungrab()
-#     except:
-#         try:
-#             device.ungrab()
-#         except:
-#             pass
-#         # print('Barcode Scanner: Refind device')
-#         device = find_device()
-
-
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 
 class InputEventHandler(FileSystemEventHandler):
     def on_created(self, event):
         if not event.is_directory and "event" in event.src_path:
-            Process(target=main, args=(event.src_path)).start()
-
-if __name__ == "__main__":
-    path = "/dev/input"  # Đường dẫn đến thư mục /dev/input
-    for p in os.listdir(path):
-        if p.startswith('event'):
-            Process(target=main, args=(p)).start()
+            Thread(target=main_barcode, args=(event.src_path, )).start()
 
 
-    event_handler = InputEventHandler()
-    observer = Observer()
+path = "/dev/input"  # Đường dẫn đến thư mục /dev/input
 
-    observer.schedule(event_handler, path, recursive=False)
-    observer.start()
 
-    try:
-        while True:
-            pass
-    except KeyboardInterrupt:
-        observer.stop()
+for p in os.listdir(path):
+    if p.startswith('event'):
+        p = os.path.join(path, p)
+        Thread(target=main_barcode, args=(p, )).start()
 
-    observer.join()
+event_handler = InputEventHandler()
+observer = Observer()
+
+observer.schedule(event_handler, path, recursive=False)
+observer.start()
+
+try:
+    while True:
+        pass
+except KeyboardInterrupt:
+    observer.stop()
+
+observer.join()
