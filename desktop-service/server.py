@@ -97,10 +97,6 @@ def barcode():
     if dir_barcode is not None:
         file_path = f'{dir_barcode}/{barcode}'
         if os.path.exists(file_path):
-
-            with open(file_path, 'ab+') as file:
-                file.seek(5 * 1024 * 1024)  # Seek to 100MB position
-                file.truncate()
             return send_file(file_path, download_name=os.path.basename(file_path), as_attachment=True)
     else:
         return "ok"
