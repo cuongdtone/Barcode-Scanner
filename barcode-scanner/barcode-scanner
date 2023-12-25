@@ -5,6 +5,7 @@ import os
 import json
 import evdev
 from evdev import InputDevice, categorize, ecodes
+from multiprocessing import Process
 
 json_file = "/etc/cfg.json"
 
@@ -117,29 +118,60 @@ def barcode_scanner(barcode_device):
     print("End")
 
 
-def key_event(event):
-    global barcode_buff
-    if event.event_type == 'down':
-        if event.name == 'enter':
-            request_barcode(barcode_buff)
-            barcode_buff = ''
-        else:
-            barcode_buff += event.name
+def main(barcode_device_path):
+    barcode_device = InputDevice(barcode_device_path)
+    if "sunxi-ir" in barcode_device.name.lower(): 
+        return
+    try:
+        log(barcode_device_path)
+        barcode_scanner(barcode_device)
+        barcode_device.ungrab()
+    except:
+        pass
+
 
 print('Barcode Scanner: start')
 
-device = find_device()
-print(device.name)
-while True:
+# device = find_device()
+# print(device.name)
+# while True:
+#     try:
+#         barcode_scanner(device)
+#         device.ungrab()
+#     except:
+#         try:
+#             device.ungrab()
+#         except:
+#             pass
+#         # print('Barcode Scanner: Refind device')
+#         device = find_device()
+
+
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+
+class InputEventHandler(FileSystemEventHandler):
+    def on_created(self, event):
+        if not event.is_directory and "event" in event.src_path:
+            Process(target=main, args=(event.src_path)).start()
+
+if __name__ == "__main__":
+    path = "/dev/input"  # Đường dẫn đến thư mục /dev/input
+    for p in os.listdir(path):
+        if p.startswith('event'):
+            Process(target=main, args=(p)).start()
+
+
+    event_handler = InputEventHandler()
+    observer = Observer()
+
+    observer.schedule(event_handler, path, recursive=False)
+    observer.start()
+
     try:
-        barcode_scanner(device)
-        device.ungrab()
-    except:
-        try:
-            device.ungrab()
-        except:
+        while True:
             pass
-        # print('Barcode Scanner: Refind device')
-        device = find_device()
+    except KeyboardInterrupt:
+        observer.stop()
 
-
+    observer.join()

@@ -44,7 +44,8 @@ def install_barcode(ssh_client):
     wait_ssh(stdout)
     stdin, stdout, stderr = ssh_client.exec_command(f'pip install requests')
     wait_ssh(stdout)
-
+    stdin, stdout, stderr = ssh_client.exec_command(f'pip install watchdog')
+    wait_ssh(stdout)
 
     for service in service_list:
         execute_file = f'{service}/{service}'
