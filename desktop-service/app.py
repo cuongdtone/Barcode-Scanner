@@ -65,7 +65,20 @@ class ScrollableLabelButtonFrame(customtkinter.CTkScrollableFrame):
             if item == label.cget("text"):
                 label.configure(text=new_item)
                 label.update()
-    
+                return
+      
+    def disbale_upload_button(self, item):
+        for idx, label in enumerate(self.ip_label_list):
+            if item == label.cget("text"):
+                button = self.button2_list[idx]
+                button.configure(state="disabled")
+                return
+            
+    def enable_upload_button(self, item):
+        for idx, label in enumerate(self.ip_label_list):
+            if item == label.cget("text"):
+                button = self.button2_list[idx]
+                button.configure(state="enable")
                 return
 
     def remove_item(self, item):
@@ -170,15 +183,17 @@ class App(customtkinter.CTk):
         with open(path, 'rb') as file:
             try:
                 response = requests.post(url, files={'file': file})
+                if response.status_code == 200:
+                    self.textbox.insert("0.0", f"Uploaded {path} to [{item}][{response.status_code}]!!\n")
+                else:
+                    self.textbox.insert("0.0", f"Device offline: [{item}][{response.status_code}]!!\n")
             except:
-                self.textbox.insert("0.0", f"Cannot upload: [{item}][{response.status_code}]!!\n")
+                self.textbox.insert("0.0", f"Cannot upload: [{item}][Connect error]!!\n")
 
-        if response.status_code == 200:
-            self.textbox.insert("0.0", f"Uploaded {path} to [{item}][{response.status_code}]!!\n")
-        else:
-            self.textbox.insert("0.0", f"Device offline: [{item}][{response.status_code}]!!\n")
+        self.scrollable_label_button_frame.enable_upload_button(item)
 
     def upload_button_frame_event(self, item):
+        self.scrollable_label_button_frame.disbale_upload_button(item)
         file_path = customtkinter.filedialog.askopenfilename(title="Select a file", filetypes=(("All files", "*.*"), ("All files", "*.*")))
         if os.path.exists(file_path):
             Thread(target=self.upload, args=(item, file_path)).start()
