@@ -58,7 +58,7 @@ def alive_thread():
                     #off_list.append(client_ip)
             except requests.exceptions.ConnectionError:
                 countMiss = countMiss + 1
-                if countMiss > 2 :
+                if countMiss > 10:
                     countMiss = 0
                     if active_devices_dict_temp[client_ip]['alive'] == True:
                         active_devices_dict_temp[client_ip]['alive'] = False
