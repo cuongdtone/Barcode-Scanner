@@ -375,7 +375,7 @@ class DeviceManagerGUI(QMainWindow):
         device.sourceFolderChanged.connect(self.update_source_folder_item)
 
         row = len(self.devices)
-        signal_item = QTableWidgetItem("")
+        signal_item = QTableWidgetItem("10/10")
         name_item = QTableWidgetItem(device.name)
 
         device.status.statusChanged.connect(self.update_status_item)

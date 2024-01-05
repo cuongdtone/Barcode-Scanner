@@ -1,6 +1,9 @@
 @echo off
 
 REM
-start pythonw desktop-service\server.py
+start .\output\server\server.exe
+
+netsh advfirewall firewall add rule name="Allow Server App" dir=in action=allow program=".\output\server\server.exe" enable=yes
+
 REM
-start pythonw desktop-service\app.py
+start .\output\app\app.exe
