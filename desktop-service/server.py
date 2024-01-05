@@ -9,7 +9,12 @@ from flask import Flask, request, jsonify, send_file, Response
 from queue import Queue
 from datetime import datetime
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+os.chdir(script_dir)
+
 app = Flask(__name__)
+
+max_longevity = 5
 
 active_devices_dict = {}
 cache_path = 'cache_active_devices_dict.json'
@@ -17,63 +22,27 @@ if os.path.exists(cache_path):
     with open(cache_path, 'r') as file:
         active_devices_dict = json.load(file)
 
+for client_ip in active_devices_dict.keys():
+    active_devices_dict[client_ip]['longevity'] = max_longevity
+
 barcode_stream = Queue(maxsize=200)
+
+def dump_cache():
+    with open(cache_path, 'w') as file:
+        json.dump(active_devices_dict, file)
 
 def alive_thread():
     global active_devices_dict
-    countMiss = 0
     while True:
         active_devices_dict_temp = active_devices_dict.copy()
-        off_list = []
         for client_ip in active_devices_dict_temp.keys():
-
-            url = f'http://{client_ip}:8080/alive'
-            now = datetime.now().strftime("%Y-%m-%d %H:%M")
-            try:
-                respone = requests.get(url, timeout=3)
-                if respone.status_code == 200:
-                    if active_devices_dict_temp[client_ip]['alive'] == False:
-                        active_devices_dict_temp[client_ip]['alive'] = True
-                        barcode_stream.put(f'{now} [{client_ip}] Device online')
-                        countMiss = 0
-                else:
-                    if active_devices_dict_temp[client_ip]['alive'] == True:
-                        active_devices_dict_temp[client_ip]['alive'] = False
-                        
-                        countMiss = countMiss + 1
-                    if countMiss > 100 :
-                        barcode_stream.put(f'{now} [{client_ip}] Device offline222')
-                        off_list.append(client_ip)
-                        countMiss = 0
-
-            
-            except requests.exceptions.ReadTimeout:
-                pass
-                #countMiss = countMiss + 1
-                #if countMiss > 5 :
-                 #   countMiss = 0
-                  #  if active_devices_dict_temp[client_ip]['alive'] == True:
-                   #     active_devices_dict_temp[client_ip]['alive'] = False
-                    #    barcode_stream.put(f' {respone} : {now} [{client_ip}] Device offline : Time Out')
-                    #off_list.append(client_ip)
-            except requests.exceptions.ConnectionError:
-                countMiss = countMiss + 1
-                if countMiss > 10:
-                    countMiss = 0
-                    if active_devices_dict_temp[client_ip]['alive'] == True:
-                        active_devices_dict_temp[client_ip]['alive'] = False
-                        barcode_stream.put(f'{now} [{client_ip}] Device offline : Connect Error')
-                    off_list.append(client_ip)
-            except :
-                pass
-                #countMiss = countMiss + 1
-                #if countMiss > 10 :
-                #    if active_devices_dict_temp[client_ip]['alive'] == True:
-                #        active_devices_dict_temp[client_ip]['alive'] = False
-                #        barcode_stream.put(f' {respone} : {now} [{client_ip}] Device offline 111')
-                 #   off_list.append(client_ip)
-        # for clip in off_list:
-        #     active_devices_dict[clip]['name'] = 'Offline'
+            if active_devices_dict_temp[client_ip]['longevity'] < 0:
+                if active_devices_dict_temp[client_ip]['alive'] == True:
+                    active_devices_dict_temp[client_ip]['alive'] = False
+                    barcode_stream.put(f'[DRA]')
+            else:
+                active_devices_dict_temp[client_ip]['longevity'] -= 1 
+  
         active_devices_dict = active_devices_dict_temp
         time.sleep(1)
 
@@ -83,7 +52,6 @@ Thread(target=alive_thread).start()
 def barcode():
     data = request.get_json()
     barcode = data['barcode']
-    print("Barcode: ", barcode)
     client_ip = request.remote_addr
     dir_barcode = None
     if client_ip in active_devices_dict.keys():
@@ -91,23 +59,45 @@ def barcode():
         if dir_barcode is None:
             barcode += " - Not selected folder"
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    barcode_stream.put(f'{now} [{client_ip}] Barcode: {barcode}')
 
     ###########################################
     if dir_barcode is not None:
+        if client_ip in active_devices_dict.keys():
+            barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} file sent')
         file_path = f'{dir_barcode}/{barcode}'
         if os.path.exists(file_path):
             return send_file(file_path, download_name=os.path.basename(file_path), as_attachment=True)
+        else:
+            if client_ip in active_devices_dict.keys():
+                barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} - File is not existed')
+            return 'clean'
     else:
-        return "ok"
-    return "ok"
+        if client_ip in active_devices_dict.keys():
+            barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} - Source folder is not selected')
+        return "clean"
+    return "clean"
+
+@app.route('/usb_file_event', methods=['POST'])
+def usb_content():
+    client_ip = request.remote_addr
+    data = request.get_json()
+    fname = data['fname']
+    if client_ip in active_devices_dict.keys():
+        active_devices_dict[client_ip]['usb'] = fname
+    barcode_stream.put(f'[DRA]')
+
+
+@app.route('/usb_clean', methods=['POST'])
+def usb_clean():
+    client_ip = request.remote_addr
+    if client_ip in active_devices_dict.keys():
+        active_devices_dict[client_ip]['usb'] = None
+    barcode_stream.put(f'[DRA]')
+
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
-    for k in active_devices_dict.keys():
-        active_devices_dict[k]['alive'] = False
-    with open(cache_path, 'w') as file:
-        json.dump(active_devices_dict, file)
+    dump_cache()
     if request.remote_addr == '127.0.0.1':
         os.kill(os.getpid(), 9)
         return 'Server is shutting down...'
@@ -120,41 +110,83 @@ def logger():
     msg = data['msg']
     client_ip = request.remote_addr
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    barcode_stream.put(f'{now} [{client_ip}] {msg}')
+    if client_ip in active_devices_dict.keys():
+        barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] {msg}')
     return "ok"
 
 @app.route('/device_register', methods=['POST'])
 def devices_register():
+    global active_devices_dict
     data = request.get_json()
     device_id = data['device_id']
     client_ip = request.remote_addr
     if client_ip in active_devices_dict.keys():
+        if active_devices_dict[client_ip]['alive'] is False:
+            active_devices_dict[client_ip]['alive'] = True
+            barcode_stream.put(f'[DRA]')
+
         active_devices_dict[client_ip]['name'] = device_id
-        active_devices_dict[client_ip]['alive'] = True
+        active_devices_dict[client_ip]['longevity'] = max_longevity
         return 'ok'
     
     client_ip = request.remote_addr
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    barcode_stream.put(f'{now} [{client_ip}] New Device register 111 !!')
+    barcode_stream.put(f'[DRA] {now} [{client_ip}] New Device register 111 !!')
 
-    active_devices_dict.update({client_ip: {"name": device_id, "dir": None, "alive": True}})
+    active_devices_dict.update({client_ip: {"name": device_id, "dir": None, "alive": True, "longevity": max_longevity, "usb": None}})
+    return "ok"
+
+
+@app.route('/remove_device', methods=['POST'])
+def remove_device():
+    global active_devices_dict
+    data = request.get_json()
+    device_id = data['device_id']
+    if device_id in list(active_devices_dict.keys()):
+        del active_devices_dict[device_id]
+        barcode_stream.put(f'Removed device {device_id}')
+    dump_cache()
+    return "ok"
+
+@app.route('/clear_cache', methods=['GET'])
+def clear_cache():
+    global active_devices_dict
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
+    active_devices_dict = {}
+    barcode_stream.put(f'Clear cache')
+    dump_cache()
     return "ok"
 
 @app.route('/select_dir', methods=['POST'])
 def select_dir():
+    global active_devices_dict
     data = request.get_json()
     client_ip = data['device_ip']
     active_devices_dict[client_ip]['dir'] = data['dir']
+    dump_cache()
+    return "ok"
+
+
+@app.route('/change_name', methods=['POST'])
+def change_name():
+    global active_devices_dict
+    data = request.get_json()
+    client_ip = data['device_ip']
+    active_devices_dict[client_ip]['name'] = data['name']
+    dump_cache()
     return "ok"
 
 @app.route('/devices', methods=['GET'])
 def devices():
+    global active_devices_dict
     active_devices_list = []
     for client_ip, value in active_devices_dict.items():
         device_id = value['name']
         status = value['alive']
-        if status is True:
-            active_devices_list.append([device_id, client_ip, status])
+        source_folder = value['dir']
+        usb = value['usb']
+        active_devices_list.append([device_id, client_ip, status, source_folder, usb])
     return jsonify(active_devices_list)
 
 @app.route('/stream')

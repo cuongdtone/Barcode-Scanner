@@ -9,39 +9,81 @@ from flask import Flask, request, jsonify, send_file
 from pathlib import Path
 from queue import Queue
 from threading import Thread
+import requests
 
 work_dir = '/data'
 media_dir = f'{work_dir}/media'
 os.makedirs(media_dir, exist_ok=True)
 usb_backingfile = os.path.join(work_dir, 'usb_partition.img')
 
-def move_file_to_usb(fpath):
+json_file = "/etc/cfg.json"
+
+with open(json_file) as file:
+    data_cfg = json.load(file)
+
+def dump_cfg():
+    global data_cfg
+    with open(json_file, 'w') as file:
+        json.dump(data_cfg, file)
+
+def log(msg):
+    try:
+        logger_url = f'http://{data_cfg["host"]}:{data_cfg["port"]}/logger'
+        response = requests.post(logger_url, json={'msg': msg})
+    except:
+        pass
+
+def clean_file():
+    log(f"USB File: start clean -> {data_cfg['device_id']}")
+
     try: #todo: convert to subproccess for system call
         os.system('modprobe g_mass_storage -r')
-        time.sleep(0.02)
         os.system(f'mount {usb_backingfile} /mnt/')
-        time.sleep(0.02)
         os.system(f'rm -rf /mnt/*')
-        time.sleep(0.02)
-        dest_path = os.path.join('/mnt/', os.path.basename(fpath))
+        os.system(f'umount /mnt/')
+        time.sleep(3)
+        os.system(f'modprobe g_mass_storage file={usb_backingfile} stall=0 removable=1')
+    except:
+        os.system(f'umount /mnt/')
+        time.sleep(3)
+        os.system(f'modprobe g_mass_storage file={usb_backingfile} stall=0 removable=1')
+    log(f"Clean USB")
+
+def repair_usb():
+    try: #todo: convert to subproccess for system call
+        os.system('rm -rf /data')
+        log(f"Repair USB at {data_cfg['device_id']}")
+        os.system('reboot -f')
+    except:
+        pass
+
+
+def move_file_to_usb(fpath):
+    log(f"USB File: start [{fpath}] -> {data_cfg['device_id']}")
+    try: #todo: convert to subproccess for system call
+        os.system('modprobe g_mass_storage -r')
+        os.system(f'mount {usb_backingfile} /mnt/')
+        os.system(f'rm -rf /mnt/*')
+        os.system(f'mkdir /mnt/data')
+        dest_path = os.path.join('/mnt/data', os.path.basename(fpath))
         shutil.copy2(fpath, dest_path)
         os.remove(fpath)
         os.system(f'umount /mnt/')
-        time.sleep(0.02)
+        time.sleep(3)
         os.system(f'modprobe g_mass_storage file={usb_backingfile} stall=0 removable=1')
-        time.sleep(0.02)
+        log(f"USB File: Move file {fpath} to USB")
     except:
-        time.sleep(0.02)
         os.system(f'umount /mnt/')
-        time.sleep(0.02)
+        time.sleep(3)
         os.system(f'modprobe g_mass_storage file={usb_backingfile} stall=0 removable=1')
-        time.sleep(0.02)
-
+        log(f"USB File: Move file failed: {fpath}")
 
 
 class USBSingle:
     def __init__(self) -> None:
         self.fpath_queue = Queue(maxsize=1000)
+        self.clean = 0
+        self.repair = 0
         Thread(target=self.task).start()
 
     def task(self):
@@ -50,10 +92,32 @@ class USBSingle:
                 while not self.fpath_queue.empty():
                     fpath = self.fpath_queue.get()
                     move_file_to_usb(fpath)
+                    usb_url = f'http://{data_cfg["host"]}:{data_cfg["port"]}/usb_file_event'
+                    try:
+                        requests.post(url=usb_url, json={'fname': os.path.basename(fpath)})
+                    except:
+                        pass
+
                     time.sleep(0.2)
+                if self.clean:
+                    self.clean = 0
+                    usb_url = f'http://{data_cfg["host"]}:{data_cfg["port"]}/usb_clean'
+                    try:
+                        requests.post(url=usb_url)
+                    except:
+                        pass
+                    clean_file()
+                if self.repair:
+                    self.repair = 0
+                    usb_url = f'http://{data_cfg["host"]}:{data_cfg["port"]}/usb_clean'
+                    try:
+                        requests.post(url=usb_url)
+                    except:
+                        pass
+                    repair_usb()
             except:
                 print("Usb-server: error")
-            time.sleep(1)        
+            time.sleep(0.3)        
 
     def add_file(self, fpath):
         self.fpath_queue.put(fpath)
@@ -76,6 +140,17 @@ def upload_file():
     usb_manager.add_file(save_path)
     return 'File uploaded successfully'
 
+@app.route('/clean', methods=['GET'])
+def clean():
+    usb_manager.clean = 1
+    return 'File uploaded successfully'
+
+
+@app.route('/repair', methods=['GET'])
+def repair():
+    usb_manager.repair = 1
+    return 'File uploaded successfully'
+
 @app.route('/addfile', methods=['POST'])
 def add_file():
     data = request.get_json()
@@ -86,6 +161,27 @@ def add_file():
 @app.route('/alive', methods=['GET'])
 def alive():
     return jsonify({'status': 'alive'})
+
+@app.route('/change_name', methods=['POST'])
+def change_name():
+    global data_cfg
+    data = request.get_json()
+    name = data['name']
+    data_cfg['device_id'] = name
+    dump_cfg()
+    return jsonify({'status': 'True'})
+
+
+@app.route('/change_wifi', methods=['POST'])
+def change_wifi():
+    global data_cfg
+    data = request.get_json()
+    ssid = data['ssid']
+    password = data['password']
+    data_cfg['ssid'] = ssid
+    data_cfg['password'] = password
+    dump_cfg()
+    return jsonify({'status': 'True'})
 
 
 if __name__ == "__main__":

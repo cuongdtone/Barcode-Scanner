@@ -1,220 +1,601 @@
-import customtkinter
+import sys
+from PyQt5.QtWidgets import QApplication, QMainWindow, \
+    QLabel, QVBoxLayout, QWidget, QListWidget, QPushButton, \
+    QTableWidget, QTableWidgetItem, QTextEdit, QLineEdit, QDialog, \
+    QHBoxLayout, QStyledItemDelegate, QStyle, QDialogButtonBox, \
+    QDialogButtonBox, QGridLayout, QFileDialog
+from PyQt5.QtGui import QColor, QPainter, QBrush, QPen, QPalette
+
+from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QObject, pyqtSignal
 import os
-from PIL import Image
-from tkinter import ttk
-import requests
+import time
 from threading import Thread
+import requests
+
+class CircularDotDelegate(QStyledItemDelegate):
+    def paint(self, painter, option, index):
+        painter.save()
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        color = index.data(Qt.DecorationRole)
+        text = index.data(Qt.DisplayRole)
+
+        if color.isValid() and option.state & QStyle.State_Enabled:
+
+            radius = min(option.rect.width(), option.rect.height()) * 0.4
+            left = option.rect.left() + radius
+
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QBrush(color))
+            painter.drawEllipse(int(left), round(option.rect.center().y() - radius/2), int(radius), int(radius))
+
+        # Draw the text
+        text_rect = option.rect.adjusted(int(radius*2 + 10), 0, 0, 0)
+        painter.setPen(QPen(option.palette.color(QPalette.Text)))
+        painter.drawText(text_rect, Qt.AlignVCenter, text)
+
+        painter.restore()
 
 
-customtkinter.set_appearance_mode("System")  # Modes: "System" (standard), "Dark", "Light"
-customtkinter.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
+class EditDeviceDialog(QDialog):
+    def __init__(self, parent=None):
+        super(EditDeviceDialog, self).__init__(parent)
+        self.setWindowTitle("Edit Device")
+    
+    def init(self, name):
+        self.label1 = QLabel("Name:")
+        self.line_edit1 = QLineEdit(name)
+        self.label2 = QLabel("WIFI SSID")
+        self.line_edit2 = QLineEdit()
 
-class ScrollableLabelButtonFrame(customtkinter.CTkScrollableFrame):
-    def __init__(self, master, command=None, upload_command=None, rename_command=None, **kwargs):
-        super().__init__(master, **kwargs)
-        self.grid_columnconfigure(0, weight=1)
+        self.label3 = QLabel("Password")
+        self.line_edit3 = QLineEdit()
 
-        self.command = command
-        self.upload_command = upload_command
-        self.rename_command = rename_command
-        self.radiobutton_variable = customtkinter.StringVar()
-        self.label_list = []
-        self.button_list = []
-        self.button2_list = []
-        self.ip_label_list = []
+        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
         
+        layout = QGridLayout()
+        layout.addWidget(self.label1, 0, 0)
+        layout.addWidget(self.line_edit1, 0, 1)
+        # layout.addWidget(self.label2, 1, 0)
+        # layout.addWidget(self.line_edit2, 1, 1)
+        # layout.addWidget(self.label3, 2, 0)
+        # layout.addWidget(self.line_edit3, 2, 1)
+        layout.addWidget(self.button_box, 3, 0, 1, 2) 
 
-    def add_item(self, item, ip):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        upload_image = customtkinter.CTkImage(Image.open(os.path.join(current_dir, "icon/upload-button.png")))
-        choice_image = customtkinter.CTkImage(Image.open(os.path.join(current_dir, "icon/choice-button.png")))
-        rename_image = customtkinter.CTkImage(Image.open(os.path.join(current_dir, "icon/rename-button.png")))
-        device_image = customtkinter.CTkImage(Image.open(os.path.join(current_dir, "icon/barcode-scanner.png")))
-
-        name_label = customtkinter.CTkLabel(self, text=item, image=device_image, compound="left", padx=5, anchor="w")
-        name_label.grid(row=len(self.label_list) * 2, column=0, pady=(0, 10), sticky="w")
-
-
-        ip_label = customtkinter.CTkLabel(self, text=ip, compound="left", padx=5, anchor="w")
-        ip_label.grid(row=len(self.label_list) * 2, column=1, pady=(0, 10), sticky="w")
-
-
-        button = customtkinter.CTkButton(self, text="Barcode Folder", width=100, height=24, image=choice_image)
-        if self.command is not None:
-            button.configure(command=lambda: self.command(ip))
-        button.grid(row=len(self.button_list) * 2, column=2, pady=(0, 10), padx=5, sticky="e")
+        self.setLayout(layout)
+        
+    def get_data(self):
+        return self.line_edit1.text(), self.line_edit2.text(), self.line_edit3.text()
     
 
-        button2 = customtkinter.CTkButton(self, text="Upload", width=50, height=24, image=upload_image)
-        if self.upload_command is not None:
-            button2.configure(command=lambda: self.upload_command(ip))
-        button2.grid(row=len(self.button_list) * 2, column=3, pady=(0, 10), padx=5, sticky="e")
+class AddDeviceDialog(QDialog):
+    def __init__(self, parent=None):
+        super(AddDeviceDialog, self).__init__(parent)
+        self.setWindowTitle("Add Device")
+        
+        self.label1 = QLabel("Name:")
+        self.line_edit1 = QLineEdit()
+        self.label2 = QLabel("IP Address:")
+        self.line_edit2 = QLineEdit()
+        
+        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        
+        layout = QGridLayout()
+        layout.addWidget(self.label1, 0, 0)
+        layout.addWidget(self.line_edit1, 0, 1)
+        layout.addWidget(self.label2, 1, 0)
+        layout.addWidget(self.line_edit2, 1, 1)
+        layout.addWidget(self.button_box, 2, 0, 1, 2)  # Trải dài button_box qua 2 cột
 
-        # button3 = customtkinter.CTkButton(self, text="Rename", width=100, height=24, image=rename_image)
-        # if self.rename_command is not None:
-        #     button3.configure(command=lambda: self.rename_command(ip))
-        # button3.grid(row=len(self.button_list) * 2, column=4, pady=(0, 10), padx=5, sticky="e")
-
-        self.label_list.append(name_label)
-        self.button_list.append(button)
-        self.button2_list.append(button2)
-        self.ip_label_list.append(ip_label)
-
-    def update_name_item(self, item, new_item):
-        for label in self.label_list:
-            if item == label.cget("text"):
-                label.configure(text=new_item)
-                label.update()
-                return
-      
-    def disbale_upload_button(self, item):
-        for idx, label in enumerate(self.ip_label_list):
-            if item == label.cget("text"):
-                button = self.button2_list[idx]
-                button.configure(state="disabled")
-                return
-            
-    def enable_upload_button(self, item):
-        for idx, label in enumerate(self.ip_label_list):
-            if item == label.cget("text"):
-                button = self.button2_list[idx]
-                button.configure(state="enable")
-                return
-
-    def remove_item(self, item):
-        for label, button, button2, ip_label in zip(self.label_list, self.button_list, self.button2_list, self.ip_label_list):
-            if item == label.cget("text"):
-                label.destroy()
-                button.destroy()
-                button2.destroy()
-                ip_label.destroy()
-                self.label_list.remove(label)
-                self.button_list.remove(button)
-                self.button2_list.remove(button2)
-                self.ip_label_list.remove(ip_label)
-                return
+        self.setLayout(layout)
+        
+    def get_data(self):
+        return self.line_edit1.text(), self.line_edit2.text()
 
 
-class App(customtkinter.CTk):
+
+class DeviceStatus(QObject):
+    statusChanged = pyqtSignal()
+
     def __init__(self):
         super().__init__()
+        self.status = 1
 
-        self.window_closed = False
+    def str_status(self):
+        return "Online" if self.status else "Offline"
 
-        self.title("Barcode Scanner")
-        self.grid_rowconfigure(0, weight=3)
-        self.grid_rowconfigure(1, weight=1)
-        self.grid_columnconfigure(0, weight=2)
-        self.grid_columnconfigure(1, weight=1)
-
-        self.geometry(f"{1100}x{580}")
-
-        # create scrollable label and button frame
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.scrollable_label_button_frame = ScrollableLabelButtonFrame(master=self, label_text="Devices", width=200, 
-                                                                        command=self.label_button_frame_event, corner_radius=0,
-                                                                        upload_command=self.upload_button_frame_event,
-                                                                        rename_command=self.rename_button_frame_event)
-        self.scrollable_label_button_frame.grid(row=0, column=0, padx=0, pady=0, sticky="nsew", rowspan=3)
-
-
-        
-        self.devices =  self.request_active_device_list()
-        for i in self.devices:  # add items with images
-            self.scrollable_label_button_frame.add_item(*i[:2])
-       
-        # create textbox
-        self.textbox = customtkinter.CTkTextbox(self, width=450)
-        self.textbox.grid(row=0, column=1, padx=0, pady=0, sticky="nsew")
-
-        self.button = customtkinter.CTkButton(self, text="Reload", width=100, height=24)
-        self.button.configure(command=lambda: self.reload())
-        self.button.grid(row=1, column=2, pady=(0, 10), padx=5, sticky="e")
-
-        Thread(target = self.stream_text).start()
-
-    def reload(self):
-        for i in self.devices:
-            self.scrollable_label_button_frame.remove_item(i[0])
-        self.devices =  self.request_active_device_list()
-        for i in self.devices:  # add items with images
-            self.scrollable_label_button_frame.add_item(*i[:2])
+    def color_status(self):
+        return QColor("green") if self.status else QColor("red")
     
-    def request_active_device_list(self):
-        """
-        request to self server
-        [
-            (device_ip, device_name, status)
-        ]
-        """
+    def set_online(self):
+        self.status = 1
+        self.statusChanged.emit()  # Emit the custom signal
+
+    def set_offline(self):
+        self.status = 0
+        self.statusChanged.emit()  # Emit the custom signal
+
+
+
+class Device(QObject):
+    nameChanged = pyqtSignal()
+    sourceFolderChanged = pyqtSignal()
+
+    def __init__(self, name, ip):
+        super().__init__()
+        self.name = name
+        self.ip = ip
+        self.source_folder = None
+        self.status = DeviceStatus()
+        self.usb = None
+
+    def is_online(self):
+        return self.status.status
+
+    def set_online(self):
+        self.status.set_online()
+
+    def set_offline(self):
+        self.status.set_offline()
+
+    def rename(self, new_name):
+        self.name = new_name
+        self.nameChanged.emit()
+    
+    def set_source_folder(self, fpath):
+        self.source_folder = fpath
+        self.sourceFolderChanged.emit()
+
+class UpdateGUI(QObject):
+    reloadSignal = pyqtSignal()
+    addLog = pyqtSignal()
+    uploadEnable = pyqtSignal()
+    uploadDisable = pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+        self.log = None
+    
+    def reload(self):
+        self.reloadSignal.emit()
+
+    def logger(self, msg):
+        self.log = msg
+        # print(msg)
+        self.addLog.emit()
+    
+    def enable_upload(self):
+        self.uploadEnable.emit()
+
+    def disable_upload(self):
+        self.uploadDisable.emit()
+        
+        
+class DeviceManagerGUI(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("EmbConnect Wifi")
+        self.resize(1100, 600)
+        button_width = 120
+
+        self.devices = []
+        self.get_devices()
+        print(self.devices)
+        self.update_gui = UpdateGUI()
+        self.update_gui.reloadSignal.connect(self.reload)
+        self.update_gui.addLog.connect(self.add_log)
+        self.update_gui.uploadEnable.connect(self.enable_upload_button)
+        self.update_gui.uploadDisable.connect(self.disable_upload_button)
+
+
+        self.selected_device = None
+
+        self.device_table_widget = QTableWidget()
+        self.device_table_widget.setColumnCount(6)
+        self.device_table_widget.setItemDelegateForColumn(2, CircularDotDelegate())
+        self.device_table_widget.setColumnWidth(4, 300)
+        self.device_table_widget.setColumnWidth(5, 300)
+
+
+        self.device_table_widget.setHorizontalHeaderLabels(
+            ["Wifi", "Name", "Status", "IP", "Source Folder", "USB File"])
+        self.populate_device_table()
+
+        self.device_table_widget.cellClicked.connect(self.device_selected)
+
+        self.device_info_label = QLabel("Select a device to view its info.")
+
+        self.add_button = QPushButton("Add Device")
+        self.add_button.clicked.connect(self.add_device)
+        self.add_button.setFixedWidth(button_width)
+
+        self.remove_button = QPushButton("Remove Device")
+        self.remove_button.setEnabled(False)
+        self.remove_button.clicked.connect(self.remove_device)
+        self.remove_button.setFixedWidth(button_width)
+
+        self.reload_button = QPushButton("Reload")
+        self.reload_button.setEnabled(True)
+        self.reload_button.clicked.connect(self.reload)
+        self.reload_button.setFixedWidth(button_width)
+
+        self.clear_button = QPushButton("Clear")
+        self.clear_button.setEnabled(True)
+        self.clear_button.clicked.connect(self.clear_cache)
+        self.clear_button.setFixedWidth(button_width)
+    
+        self.setup_button = QPushButton("Edit Device")
+        self.setup_button.setEnabled(False)
+        self.setup_button.clicked.connect(self.edit_device)
+
+        self.upload_button = QPushButton("Upload")
+        self.upload_button.setEnabled(False)
+        self.upload_button.clicked.connect(self.upload_to_device)
+
+        self.select_folder_button = QPushButton("Source Folder")
+        self.select_folder_button.setEnabled(False)
+        self.select_folder_button.clicked.connect(self.select_source_folder)
+
+        self.clear_usb_button = QPushButton("Clear USB")
+        self.clear_usb_button.setEnabled(False)
+        self.clear_usb_button.clicked.connect(self.clear_usb)
+
+        self.repair_usb_button = QPushButton("Repair USB")
+        self.repair_usb_button.setEnabled(False)
+        self.repair_usb_button.clicked.connect(self.repair_usb)
+
+        self.log_text_edit = QTextEdit()
+        self.log_text_edit.setReadOnly(True)
+        self.log_text_edit.setStyleSheet("border: 1px solid black;")
+
+        central_widget = QWidget()
+        layout = QVBoxLayout()
+        
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.add_button)
+        button_layout.addWidget(self.remove_button)
+        button_layout.addWidget(self.reload_button)
+        button_layout.addWidget(self.clear_button)
+
+        button_device_layout = QHBoxLayout()
+        button_device_layout.addWidget(self.setup_button)
+        button_device_layout.addWidget(self.upload_button)
+        button_device_layout.addWidget(self.select_folder_button)
+        button_device_layout.addWidget(self.clear_usb_button)
+        button_device_layout.addWidget(self.repair_usb_button)
+
+        layout.addLayout(button_layout)
+        layout.addWidget(self.device_table_widget)
+        layout.addLayout(button_device_layout)
+
+        layout.addWidget(self.device_info_label)
+        layout.addWidget(self.log_text_edit)
+
+        central_widget.setLayout(layout)
+        self.setCentralWidget(central_widget)
+
+        self.alive = True
+        Thread(target=self.update_screen).start()
+
+    def repair_usb(self):
+        if self.selected_device:
+            url = f'http://{self.selected_device.ip}:8080/repair'
+            try:
+                response = requests.get(url)
+                self.reload()
+            except:
+                pass
+    
+    def clear_usb(self):
+        if self.selected_device:
+            url = f'http://{self.selected_device.ip}:8080/clean'
+            try:
+                response = requests.get(url)
+                self.reload()
+            except:
+                pass
+
+    def clear_cache(self):
+        url = 'http://127.0.0.1:8081/clear_cache'
+        try:
+            response = requests.get(url)
+            self.reload()
+        except:
+            pass
+
+    
+    def enable_upload_button(self):
+        self.upload_button.setEnabled(True)
+
+    def disable_upload_button(self):
+        self.upload_button.setEnabled(False)
+    
+    def update_screen(self):
+        url = 'http://127.0.0.1:8081/stream'
+        try:
+            response = requests.get(url, stream=True)
+            for line in response.iter_lines():
+                if self.alive:
+                    if line:
+                        try:
+                            text_line = line.decode('utf-8')
+                            if text_line.startswith('[DRA]'):
+                                self.update_gui.reload()
+                            else:
+                                self.update_gui.logger(text_line)
+                        except:
+                            continue
+                else:
+                    break
+        except:
+            return 
+    
+    def add_log(self):
+        sender = self.sender()
+        self.log_text_edit.append(sender.log)
+
+    def get_devices(self):
         try:
             url = 'http://127.0.0.1:8081/devices'
-            return requests.get(url).json()
+            response =  requests.get(url).json()
+            self.devices = []
+            for dev in response:
+                # try:
+                    name, ip, status, source_folder, usb = dev
+                    d = Device(name, ip)
+                    d.status = DeviceStatus()
+                    d.status.status = int(status)
+                    d.source_folder = source_folder
+                    d.usb = usb
+                    self.devices.append(d)
+                # except:
+                #     pass
         except:
             return []
 
-    def stream_text(self):
-        url = 'http://127.0.0.1:8081/stream'
-        response = requests.get(url, stream=True)
-        for line in response.iter_lines():
-            if self.window_closed:
-                break
-            if line:
-                text_line = line.decode('utf-8')
-                if "Device" in text_line:
-                    self.reload()
-                self.textbox.insert("0.0", text_line + "\n")
+    def closeEvent(self, event):
+        print("Closing the application...")
+        self.alive = False
 
-    def backend_task(self):
-        pass
-
-    def label_button_frame_event(self, item):
-        path = customtkinter.filedialog.askdirectory(title="Select a folder")
-        if path is not None and os.path.exists(path):
-            print('Request')
-            url = 'http://127.0.0.1:8081/select_dir'
-            print(url)
-            response = requests.post(url, json={'device_ip': item, 'dir': path})
-            self.textbox.insert("0.0", f"Selected {path} [{item}] [{response.status_code}]\n")
-
-    def upload(self, item, path):
-        self.textbox.insert("0.0", f"Uploading {path} to [{item}] ....\n")
-        url = f'http://{item}:8080/upload'
-        with open(path, 'rb') as file:
-            try:
-                response = requests.post(url, files={'file': file})
-                if response.status_code == 200:
-                    self.textbox.insert("0.0", f"Uploaded {path} to [{item}][{response.status_code}]!!\n")
-                else:
-                    self.textbox.insert("0.0", f"Device offline: [{item}][{response.status_code}]!!\n")
-            except:
-                self.textbox.insert("0.0", f"Cannot upload: [{item}][Connect error]!!\n")
-
-        self.scrollable_label_button_frame.enable_upload_button(item)
-
-    def upload_button_frame_event(self, item):
-        self.scrollable_label_button_frame.disbale_upload_button(item)
-        file_path = customtkinter.filedialog.askopenfilename(title="Select a file", filetypes=(("All files", "*.*"), ("All files", "*.*")))
-        if os.path.exists(file_path):
-            Thread(target=self.upload, args=(item, file_path)).start()
-
-    def rename_button_frame_event(self, item):
-        print(f"Rename button frame clicked: {item}")
-        diaglog = customtkinter.CTkInputDialog(title="Rename Device", text='New name')
-        new_item = diaglog.get_input()
-        if new_item is not None:
-            self.scrollable_label_button_frame.update_name_item(item, new_item)
-
-    def destroy(self):
-        self.window_closed = True
         url = 'http://127.0.0.1:8081/shutdown'
         try:
             response = requests.post(url)
         except:
             pass
-        super().destroy()
+
+    def add_device_raw(self, name, ip):
+        self.device_table_widget.setRowCount(len(self.devices) + 1)
+        device = Device(name, ip)
+        device.nameChanged.connect(self.update_name_item)
+        device.sourceFolderChanged.connect(self.update_source_folder_item)
+
+        row = len(self.devices)
+        signal_item = QTableWidgetItem("")
+        name_item = QTableWidgetItem(device.name)
+
+        device.status.statusChanged.connect(self.update_status_item)
+        device.set_offline()
+
+        status_item_gui = QTableWidgetItem(device.status.str_status())
+        status_item_gui.setData(Qt.DecorationRole, device.status.color_status())
+
+        ip_item = QTableWidgetItem(device.ip)
+        info_item = QTableWidgetItem(device.source_folder)
+
+        usb_status_item = QTableWidgetItem(device.source_folder)
+
+        self.devices.append(device)
+
+        self.device_table_widget.setItem(row, 0, signal_item)
+        self.device_table_widget.setItem(row, 1, name_item)
+        self.device_table_widget.setItem(row, 2, status_item_gui)
+        self.device_table_widget.setItem(row, 3, ip_item)
+        self.device_table_widget.setItem(row, 4, info_item)
+        self.device_table_widget.setItem(row, 5, usb_status_item)
+
+
+    def populate_device_table(self):
+        self.device_table_widget.setRowCount(len(self.devices))
+
+        for row, device in enumerate(self.devices):
+
+            signal_item = QTableWidgetItem("")
+            name_item = QTableWidgetItem(device.name)
+
+            device.status.statusChanged.connect(self.update_status_item)
+            device.nameChanged.connect(self.update_name_item)
+            device.sourceFolderChanged.connect(self.update_source_folder_item)
+ 
+            status_item_gui = QTableWidgetItem(device.status.str_status())
+            status_item_gui.setData(Qt.DecorationRole, device.status.color_status())
+
+            ip_item = QTableWidgetItem(device.ip)
+
+            info_item = QTableWidgetItem(device.source_folder)
+            if device.source_folder is not None:
+                color = QColor("green") if len(os.listdir(device.source_folder)) > 0 else QColor("yellow")
+                brush = QBrush(color)
+                info_item.setBackground(brush)
+
+            usb_item = QTableWidgetItem(device.usb)
+            if device.usb is not None:
+                color = QColor("green") if len(os.listdir(device.source_folder)) > 0 else QColor("yellow")
+                brush = QBrush(color)
+                usb_item.setBackground(brush)
+
+
+            self.device_table_widget.setItem(row, 0, signal_item)
+            self.device_table_widget.setItem(row, 1, name_item)
+            self.device_table_widget.setItem(row, 2, status_item_gui)
+            self.device_table_widget.setItem(row, 3, ip_item)
+            self.device_table_widget.setItem(row, 4, info_item)
+            self.device_table_widget.setItem(row, 5, usb_item)
+
+
+    def update_status_item(self):
+        sender_status = self.sender()
+        for row, device in enumerate(self.devices):
+            if device.status == sender_status:
+                self.device_table_widget.item(row, 2).setData(Qt.DecorationRole, sender_status.color_status())
+                self.device_table_widget.item(row, 2).setText(sender_status.str_status())
+
+    def update_name_item(self):
+        sender_status = self.sender()
+        for row, device in enumerate(self.devices):
+            if device == self.selected_device:
+                self.device_table_widget.item(row, 1).setText(sender_status.name)
+
+    def update_source_folder_item(self):
+        sender_status = self.sender()
+        for row, device in enumerate(self.devices):
+            if device == self.selected_device:
+                color = QColor("green") if len(os.listdir(sender_status.source_folder)) > 0 else QColor("yellow")
+                brush = QBrush(color)
+                self.device_table_widget.item(row, 4).setText(sender_status.source_folder)
+                self.device_table_widget.item(row, 4).setBackground(brush)
+
+    def device_selected(self, row, column):
+        if row < len(self.devices):
+            self.selected_device = self.devices[row]
+            if column == 4:
+                if self.selected_device.source_folder is not None:
+                    list_dir = os.listdir(self.selected_device.source_folder)
+                    self.update_gui.logger(f'List files: {list_dir}')
+
+            self.device_info_label.setText(
+                f"Name: {self.selected_device.name}\nStatus: {self.selected_device.status.str_status()}\nIP: {self.selected_device.ip}\nFolder: {self.selected_device.source_folder}")
+            self.setup_button.setEnabled(True)
+            self.upload_button.setEnabled(True)
+            self.select_folder_button.setEnabled(True)
+            self.clear_usb_button.setEnabled(True)
+            self.repair_usb_button.setEnabled(True)
+            self.remove_button.setEnabled(True)
+
+    def edit_device(self):
+        if self.selected_device:
+            diaglog = EditDeviceDialog()
+            diaglog.init(name=self.selected_device.name)
+            if diaglog.exec_() == QDialog.Accepted:
+                name, ssid, pw = diaglog.get_data()
+                if not self.selected_device.is_online():
+                    self.update_gui.logger("Selected device is offline")
+                    return
+                if self.selected_device.name != name:
+                    # self.selected_device.rename(name)
+                    # todo: request to rename
+                    server_url = 'http://127.0.0.1:8081/change_name'
+                    device_url = f'http://{self.selected_device.ip}:8080/change_name'
+                    print(self.selected_device.name)
+                    try:
+                        requests.post(device_url, json={"device_ip": self.selected_device.ip, "name": name}, timeout=2)
+                        requests.post(server_url, json={"device_ip": self.selected_device.ip, "name": name}, timeout=2)
+                        self.update_gui.logger(f"Edit device name [{self.selected_device.name}] to [{name}]")
+
+                        self.update_gui.reload()
+                    except:
+                        self.update_gui.logger(f"Edit device name [{self.selected_device.name}] to [{name}]")
+                        pass
+
+                if ssid and pw:
+                    # todo: request to change wifi
+                    self.update_gui.logger(f"Edit wifi of device [{self.selected_device.name}]: {ssid}]")
+    
+    def upload_task(self, path):
+        self.update_gui.disable_upload()
+        url = f'http://{self.selected_device.ip}:8080/upload'
+        with open(path, 'rb') as file:
+            try:
+                response = requests.post(url, files={'file': file})
+                if response.status_code != 200:
+                #     self.update_gui.logger(f"Uploaded {path} to [{self.selected_device.name}][{response.status_code}]!!")
+                # else:
+                    self.update_gui.logger(f"Device offline: [{self.selected_device.name}][{response.status_code}]!!\n")
+            except:
+                self.update_gui.logger(f"Cannot upload: [{self.selected_device.name}][Connect error]!!\n")
+        self.update_gui.enable_upload()
+
+    def upload_to_device(self):
+        if self.selected_device: # and self.selected_device.is_online():
+            file_dialog = QFileDialog()
+            file_dialog.setFileMode(QFileDialog.ExistingFile)
+            file_dialog.setWindowTitle("Select File")
+            file_dialog.setNameFilter("All Files (*.*)")
+            if file_dialog.exec_() == QFileDialog.Accepted:
+                selected_files = file_dialog.selectedFiles()
+                if selected_files:
+                    file_path = selected_files[0]
+                    if os.path.exists(file_path):
+                        self.update_gui.logger(f"Uploading {file_path} to [{self.selected_device.name}]")
+                        Thread(target=self.upload_task, args=(file_path, )).start()
+
+
+    def select_source_folder(self):
+        if self.selected_device:
+            # if not self.selected_device.is_online():
+            #     self.update_gui.logger("Selected device is offline")
+            #     return
+            folder_path = QFileDialog.getExistingDirectory(self, "Select Folder")
+            if folder_path:
+                # print("Selected Folder:", folder_path)
+                # self.selected_device.set_source_folder(folder_path)
+                server_url = 'http://127.0.0.1:8081/select_dir'
+                try:
+                    response = requests.post(server_url, json={'device_ip': self.selected_device.ip, 'dir': folder_path})
+                    self.update_gui.reload()
+                except:
+                    pass
+
+
+
+    def add_device(self):
+        device = AddDeviceDialog()
+        if device.exec_() == QDialog.Accepted:
+            name, ip = device.get_data()
+            for d in self.devices:
+                if d.ip == ip:
+                    return
+            self.add_device_raw(name, ip)
+    
+    def remove_device_server(self, device_ip):
+        url = 'http://127.0.0.1:8081/remove_device'
+        try:
+            response = requests.post(url, json={'device_id': device_ip})
+        except:
+            pass
+        self.get_devices()
+
+    def remove_device(self):
+        if self.selected_device:
+            self.remove_device_server(self.selected_device.ip)
+            self.selected_device = None
+            self.device_info_label.setText("Select a device to view its info.")
+            self.setup_button.setEnabled(False)
+            self.upload_button.setEnabled(False)
+            self.select_folder_button.setEnabled(False)
+            self.clear_usb_button.setEnabled(False)
+            self.repair_usb_button.setEnabled(False)
+            self.remove_button.setEnabled(False)
+            self.populate_device_table()
+
+    def reload(self):
+        self.get_devices()
+        self.selected_device = None
+        self.device_info_label.setText("Select a device to view its info.")
+        self.setup_button.setEnabled(False)
+        self.upload_button.setEnabled(False)
+        self.select_folder_button.setEnabled(False)
+        self.clear_usb_button.setEnabled(False)
+        self.repair_usb_button.setEnabled(False)
+        self.remove_button.setEnabled(False)
+        self.populate_device_table()
 
 if __name__ == "__main__":
-    customtkinter.set_appearance_mode("light")
-    app = App()
-    app.mainloop()
+    app = QApplication(sys.argv)
+    window = DeviceManagerGUI()
+    window.show()
+    sys.exit(app.exec_())

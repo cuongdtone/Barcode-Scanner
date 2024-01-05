@@ -27,53 +27,7 @@ host_name = data_cfg['host']
 port = data_cfg['port']
 desktop_url = f'http://{host_name}:{port}/'
 logger_url = f'http://{host_name}:{port}/logger'
-device_exactly_name = None if 'input_dev' not in data_cfg.keys() else data_cfg['input_dev']
 
-
-def log(msg):
-    try:
-        response = requests.post(logger_url, json={'msg': msg})
-    except:
-        pass
-
-
-def move_to_usb(fpath):
-    url = 'http://127.0.0.1:8080/addfile'
-    data = {
-        'fpath': fpath
-    }
-    response = requests.post(url, json=data)
-
-request_flag = False
-
-def request_barcode(barcode):
-    global request_flag
-    request_flag = True
-    url = desktop_url + 'barcode'
-
-    data = {
-        'barcode': barcode
-    }
-    try:
-        response = requests.post(url, json=data)
-        if response.status_code == 200:
-            try:
-                attachment_filename = response.headers.get('Content-Disposition').split('filename=')[1]
-                save_path = f'{media}/{attachment_filename}'
-                with open(save_path, 'wb') as file:
-                    file.write(response.content)
-                print(f"Received file: {attachment_filename}")
-                move_to_usb(save_path)
-                log(f"Barcode USB: push successfully {attachment_filename}")
-            except:
-                #print("Not attachment")
-                pass
-        else:
-            print("Error occurred while sending the request.")
-    except:
-        pass
-    request_flag = False
-    
 CHARMAP = {
         evdev.ecodes.KEY_1: ['1', '!'],
         evdev.ecodes.KEY_2: ['2', '@'],
@@ -123,7 +77,59 @@ CHARMAP = {
         evdev.ecodes.KEY_DOT: ['.', '>'],
         evdev.ecodes.KEY_SLASH: ['/', '?'],
         evdev.ecodes.KEY_SPACE: [' ', ' '],
-        }
+}
+
+
+def log(msg):
+    try:
+        response = requests.post(logger_url, json={'msg': msg})
+    except:
+        pass
+
+def clean_usb():
+    url = 'http://127.0.0.1:8080/clean'
+    try:
+        response = requests.get(url)
+    except:
+        log("Fail when clean usb")
+        pass
+
+def move_to_usb(fpath):
+    url = 'http://127.0.0.1:8080/addfile'
+    data = {
+        'fpath': fpath
+    }
+    response = requests.post(url, json=data)
+
+request_flag = False
+
+def request_barcode(barcode):
+    global request_flag
+    request_flag = True
+    url = desktop_url + 'barcode'
+
+    data = {
+        'barcode': barcode
+    }
+    try:
+        response = requests.post(url, json=data)
+        if response.status_code == 200:
+            try:
+                attachment_filename = response.headers.get('Content-Disposition').split('filename=')[1]
+                save_path = f'{media}/{attachment_filename}'
+                with open(save_path, 'wb') as file:
+                    file.write(response.content)
+                log(f"Received file: {attachment_filename}")
+                move_to_usb(save_path)
+            except:
+                clean_usb()
+                pass
+        else:
+            print("Error occurred while sending the request.")
+    except:
+        pass
+    request_flag = False
+    
 
 
 def barcode_scanner(barcode_device):

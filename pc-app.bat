@@ -1,7 +1,6 @@
 @echo off
 
 REM
-start output\server\server.exe
-
+start pythonw desktop-service\server.py
 REM
-start output\app\app.exe
+start pythonw desktop-service\app.py

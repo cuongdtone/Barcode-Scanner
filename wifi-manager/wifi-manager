@@ -12,9 +12,20 @@ def run_device_command(cmd):
     return result.stdout if result.returncode == 0 else result.stderr
 
 json_file = "/etc/cfg.json"
+data_cfg = None
+data_cfg, ssid, password, host = None, None, None, None
 
-with open(json_file) as file:
-    data_cfg = json.load(file)
+def load_cfg():
+    global data_cfg, ssid, password, host_name, port, device_id
+    with open(json_file) as file:
+        data_cfg = json.load(file)
+    ssid = data_cfg['ssid']
+    password = data_cfg['password']
+    host_name = data_cfg['host']
+    port = data_cfg['port']
+    device_id = data_cfg['device_id']
+
+load_cfg()
 
 ssid = data_cfg['ssid']
 password = data_cfg['password']
@@ -27,6 +38,7 @@ alive_flag = True
 
 while True:
     out = run_device_command(f'iwgetid')
+    load_cfg()
     print(out)
     if ssid not in out:
         alive_flag = False
@@ -43,7 +55,7 @@ while True:
         try:
             response = requests.post(desktop_url, json={'device_id': device_id}, timeout=1)
             if response.status_code == 200:
-                time.sleep(10)
+                time.sleep(1)
             else:
                 time.sleep(1)
         except:
