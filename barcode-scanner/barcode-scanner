@@ -13,9 +13,18 @@ from watchdog.events import FileSystemEventHandler
 import time
 
 json_file = "/root/cfg.json"
+cfg_url = f"""http://127.0.0.1:8080/cfg"""
 
-with open(json_file) as file:
-    data_cfg = json.load(file)
+def load_cfg():
+    try:
+        res = requests.get(url=cfg_url)
+        return res.json()
+    except:
+        with open(json_file) as file:
+            data_cfg = json.load(file)
+        return data_cfg
+
+data_cfg = load_cfg()
 
 work_dir = '/data'
 media = f'{work_dir}/media'

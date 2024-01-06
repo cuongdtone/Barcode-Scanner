@@ -180,6 +180,11 @@ def change_name():
     return jsonify({'status': 'True'})
 
 
+@app.route('/cfg', methods=['GET'])
+def change_name():
+    global data_cfg
+    return jsonify(data_cfg)
+
 # @app.route('/change_wifi', methods=['POST'])
 # def change_wifi():
 #     global data_cfg

@@ -13,13 +13,19 @@ def run_device_command(cmd):
 
 json_file = "/root/cfg.json"
 data_cfg = None
+cfg_url = f"""http://127.0.0.1:8080/cfg"""
 
 def load_cfg():
-    with open(json_file) as file:
-        data_cfg = json.load(file)
-    return data_cfg
+    try:
+        res = requests.get(url=cfg_url)
+        return res.json()
+    except:
+        with open(json_file) as file:
+            data_cfg = json.load(file)
+        return data_cfg
 
-data_cfg = load_cfg()
+with open(json_file) as file:
+    data_cfg = json.load(file)
 
 desktop_url = f"""http://{data_cfg['host']}:{data_cfg['port']}/device_register"""
 alive_flag = True
