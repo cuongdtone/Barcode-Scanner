@@ -56,25 +56,24 @@ def barcode():
     dir_barcode = None
     if client_ip in active_devices_dict.keys():
         dir_barcode = active_devices_dict[client_ip]['dir']
-        if dir_barcode is None:
-            barcode += " - Not selected folder"
+    else:
+        barcode_stream.put(f'{now} [{client_ip}] Barcode sent from unregister device')
+        return "clean"
+
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     ###########################################
     if dir_barcode is not None:
-        if client_ip in active_devices_dict.keys():
-            barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} file sent')
+        # if client_ip in active_devices_dict.keys():
+        #     barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} file sent')
         file_path = f'{dir_barcode}/{barcode}'
         if os.path.exists(file_path):
+            barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} file sent')
             return send_file(file_path, download_name=os.path.basename(file_path), as_attachment=True)
         else:
-            if client_ip in active_devices_dict.keys():
-                barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} - File is not existed')
-            return 'clean'
+            barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} - File is not existed')
     else:
-        if client_ip in active_devices_dict.keys():
-            barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} - Source folder is not selected')
-        return "clean"
+        barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} - Source folder is not selected')
     return "clean"
 
 @app.route('/usb_file_event', methods=['POST'])
@@ -125,13 +124,16 @@ def devices_register():
             active_devices_dict[client_ip]['alive'] = True
             barcode_stream.put(f'[DRA]')
 
-        active_devices_dict[client_ip]['name'] = device_id
         active_devices_dict[client_ip]['longevity'] = max_longevity
+
+        if active_devices_dict[client_ip]['name'] != device_id:
+            barcode_stream.put(f'Device name changed: {active_devices_dict[client_ip]["name"]} -> {device_id}')
+            active_devices_dict[client_ip]['name'] = device_id
+            barcode_stream.put(f'[DRA]')
         return 'ok'
-    
-    client_ip = request.remote_addr
+
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    barcode_stream.put(f'[DRA] {now} [{client_ip}] New Device register 111 !!')
+    barcode_stream.put(f'[DRA] {now} [{client_ip}] New Device register!')
 
     active_devices_dict.update({client_ip: {"name": device_id, "dir": None, "alive": True, "longevity": max_longevity, "usb": None}})
     return "ok"
