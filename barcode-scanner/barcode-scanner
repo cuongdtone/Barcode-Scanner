@@ -197,6 +197,7 @@ observer.start()
 
 try:
     while True:
+        time.sleep(0.05)
         pass
 except KeyboardInterrupt:
     observer.stop()

@@ -224,9 +224,9 @@ class DeviceManagerGUI(QMainWindow):
         self.reload_button.clicked.connect(self.reload)
         self.reload_button.setFixedWidth(button_width)
 
-        self.clear_button = QPushButton("Clear")
+        self.clear_button = QPushButton("Clear log")
         self.clear_button.setEnabled(True)
-        self.clear_button.clicked.connect(self.clear_cache)
+        self.clear_button.clicked.connect(self.clear_log)
         self.clear_button.setFixedWidth(button_width)
     
         self.setup_button = QPushButton("Edit Device")
@@ -308,6 +308,8 @@ class DeviceManagerGUI(QMainWindow):
         except:
             pass
 
+    def clear_log(self):
+        self.log_text_edit.clear()
     
     def enable_upload_button(self):
         self.upload_button.setEnabled(True)
