@@ -25,10 +25,14 @@ def dump_cfg():
     global data_cfg
     with open(json_file, 'w') as file:
         json.dump(data_cfg, file)
+        file.flush()
+        os.fsync(file.fileno()) 
 
 def dump_cfg_data(data):
     with open(json_file, 'w') as file:
         json.dump(data, file)
+        file.flush()
+        os.fsync(file.fileno()) 
 
 def log(msg):
     try:
