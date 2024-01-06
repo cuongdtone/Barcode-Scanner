@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, \
     QLabel, QVBoxLayout, QWidget, QListWidget, QPushButton, \
     QTableWidget, QTableWidgetItem, QTextEdit, QLineEdit, QDialog, \
     QHBoxLayout, QStyledItemDelegate, QStyle, QDialogButtonBox, \
-    QDialogButtonBox, QGridLayout, QFileDialog
+    QDialogButtonBox, QGridLayout, QFileDialog, QAbstractItemView
 from PyQt5.QtGui import QColor, QPainter, QBrush, QPen, QPalette
 
 from PyQt5.QtCore import Qt
@@ -200,6 +200,7 @@ class DeviceManagerGUI(QMainWindow):
         self.device_table_widget.setItemDelegateForColumn(2, CircularDotDelegate())
         self.device_table_widget.setColumnWidth(4, 300)
         self.device_table_widget.setColumnWidth(5, 300)
+        self.device_table_widget.setEditTriggers(QAbstractItemView.NoEditTriggers)
 
 
         self.device_table_widget.setHorizontalHeaderLabels(
