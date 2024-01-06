@@ -181,7 +181,7 @@ def change_name():
 
 
 @app.route('/cfg', methods=['GET'])
-def change_name():
+def cfg():
     global data_cfg
     return jsonify(data_cfg)
 
