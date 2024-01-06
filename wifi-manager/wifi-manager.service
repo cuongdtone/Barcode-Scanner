@@ -1,7 +1,7 @@
 [Unit]
 Description=Wifi connect service
 After=config-manager.service NetworkManager.service
-ConditionPathExists=/etc/cfg.json
+ConditionPathExists=/root/cfg.json
 
 [Service]
 ExecStart=python3 /etc/wifi-manager

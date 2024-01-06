@@ -16,7 +16,7 @@ media_dir = f'{work_dir}/media'
 os.makedirs(media_dir, exist_ok=True)
 usb_backingfile = os.path.join(work_dir, 'usb_partition.img')
 
-json_file = "/etc/cfg.json"
+json_file = "/root/cfg.json"
 
 with open(json_file) as file:
     data_cfg = json.load(file)

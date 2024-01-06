@@ -11,7 +11,7 @@ def run_device_command(cmd):
     result = subprocess.run(cmd, capture_output=True, text=True)
     return result.stdout if result.returncode == 0 else result.stderr
 
-json_file = "/etc/cfg.json"
+json_file = "/root/cfg.json"
 data_cfg = None
 
 def load_cfg():

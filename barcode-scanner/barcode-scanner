@@ -12,7 +12,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import time
 
-json_file = "/etc/cfg.json"
+json_file = "/root/cfg.json"
 
 with open(json_file) as file:
     data_cfg = json.load(file)
