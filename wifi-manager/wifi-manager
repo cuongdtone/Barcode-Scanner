@@ -13,38 +13,27 @@ def run_device_command(cmd):
 
 json_file = "/etc/cfg.json"
 data_cfg = None
-data_cfg, ssid, password, host = None, None, None, None
 
 def load_cfg():
-    global data_cfg, ssid, password, host_name, port, device_id
     with open(json_file) as file:
         data_cfg = json.load(file)
-    ssid = data_cfg['ssid']
-    password = data_cfg['password']
-    host_name = data_cfg['host']
-    port = data_cfg['port']
-    device_id = data_cfg['device_id']
+    return data_cfg
 
-load_cfg()
+data_cfg = load_cfg()
 
-ssid = data_cfg['ssid']
-password = data_cfg['password']
-host_name = data_cfg['host']
-port = data_cfg['port']
-device_id = data_cfg['device_id']
-desktop_url = f'http://{host_name}:{port}/device_register'
+desktop_url = f"""http://{data_cfg['host']}:{data_cfg['port']}/device_register"""
 alive_flag = True
 
 
 while True:
     out = run_device_command(f'iwgetid')
-    load_cfg()
+    data_cfg = load_cfg()
     print(out)
-    if ssid not in out:
+    if data_cfg['ssid'] not in out:
         alive_flag = False
         if os.path.exists('/etc/wifi_connected'):
             os.remove('/etc/wifi_connected')
-        os.system(f'nmcli d wifi connect "{ssid}" password "{password}"')
+        os.system(f"""nmcli d wifi connect "{data_cfg['ssid']}" password "{data_cfg['password']}""")
         time.sleep(1)
     else:
         if alive_flag is False:
@@ -53,10 +42,10 @@ while True:
             alive_flag = True
         os.system('touch /etc/wifi_connected')
         try:
-            response = requests.post(desktop_url, json={'device_id': device_id}, timeout=1)
-            if response.status_code == 200:
-                time.sleep(1)
-            else:
-                time.sleep(1)
+            response = requests.post(desktop_url, json={'device_id': data_cfg['device_id']}, timeout=3)
+            # if response.status_code == 200:
+            #     time.sleep(1)
+            # else:
+            time.sleep(1)
         except:
             pass
