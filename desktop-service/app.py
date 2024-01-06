@@ -487,19 +487,18 @@ class DeviceManagerGUI(QMainWindow):
                     return
                 if self.selected_device.name != name:
                     # self.selected_device.rename(name)
-                    # todo: request to rename
-                    server_url = 'http://127.0.0.1:8081/change_name'
+                    # server_url = 'http://127.0.0.1:8081/change_name'
                     device_url = f'http://{self.selected_device.ip}:8080/change_name'
-                    print(self.selected_device.name)
                     try:
-                        requests.post(device_url, json={"device_ip": self.selected_device.ip, "name": name}, timeout=2)
-                        requests.post(server_url, json={"device_ip": self.selected_device.ip, "name": name}, timeout=2)
-                        self.update_gui.logger(f"Edit device name [{self.selected_device.name}] to [{name}]")
-
-                        self.update_gui.reload()
+                        response = requests.post(device_url, json={"device_ip": self.selected_device.ip, "name": name}, timeout=3)
+                        # requests.post(server_url, json={"device_ip": self.selected_device.ip, "name": name}, timeout=2)
+                        if response.status_code == 200:
+                            self.update_gui.logger(f"Edited device name [{self.selected_device.name}] to [{name}]")
+                        else:
+                            self.update_gui.logger(f"Failed when edite device name [{self.selected_device.name}] to [{name}] [{response.status_code}]")
                     except:
-                        self.update_gui.logger(f"Edit device name [{self.selected_device.name}] to [{name}]")
-                        pass
+                        self.update_gui.logger(f"Failed when edit device name [{self.selected_device.name}] to [{name}]")
+                    self.update_gui.reload()
 
                 if ssid and pw:
                     # todo: request to change wifi

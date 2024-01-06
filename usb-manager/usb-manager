@@ -26,6 +26,10 @@ def dump_cfg():
     with open(json_file, 'w') as file:
         json.dump(data_cfg, file)
 
+def dump_cfg_data(data):
+    with open(json_file, 'w') as file:
+        json.dump(data, file)
+
 def log(msg):
     try:
         logger_url = f'http://{data_cfg["host"]}:{data_cfg["port"]}/logger'
@@ -168,20 +172,20 @@ def change_name():
     data = request.get_json()
     name = data['name']
     data_cfg['device_id'] = name
-    dump_cfg()
+    dump_cfg_data(data_cfg)
     return jsonify({'status': 'True'})
 
 
-@app.route('/change_wifi', methods=['POST'])
-def change_wifi():
-    global data_cfg
-    data = request.get_json()
-    ssid = data['ssid']
-    password = data['password']
-    data_cfg['ssid'] = ssid
-    data_cfg['password'] = password
-    dump_cfg()
-    return jsonify({'status': 'True'})
+# @app.route('/change_wifi', methods=['POST'])
+# def change_wifi():
+#     global data_cfg
+#     data = request.get_json()
+#     ssid = data['ssid']
+#     password = data['password']
+#     data_cfg['ssid'] = ssid
+#     data_cfg['password'] = password
+#     dump_cfg()
+#     return jsonify({'status': 'True'})
 
 
 if __name__ == "__main__":
