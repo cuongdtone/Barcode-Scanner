@@ -32,10 +32,13 @@ def install_barcode(ssh_client):
     service_list = ['barcode-scanner', 'config-manager', 'usb-gadget-msc', 'usb-manager', 'wifi-manager']
 
     sftp_client = ssh_client.open_sftp()
+    print('Put package')
     sftp_client.put("barcode-package.zip", f'/root')
+    print('Put package success. Unzip ...')
     stdin, stdout, stderr = ssh_client.exec_command(f'unzip /root/barcode-package.zip -d /root/barcode-package/')
     wait_ssh(stdout)
-    
+    print('Unzip success')
+
     service_dir = '/etc/systemd/system/'
     script_dir = '/etc/'
     stdin, stdout, stderr = ssh_client.exec_command(f'sudo apt-get -y update')
