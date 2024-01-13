@@ -57,7 +57,7 @@ def install_barcode(ssh_client):
         sftp_client.put(service_file, f'{service_dir}/{service}.service')
 
         ssh_client.exec_command(f'chmod +x {script_dir}/{service}')
-        ssh_client.exec_command(f"sed -i 's/\r$//' rvice}")
+        ssh_client.exec_command(f"sed -i 's/\r$//' {script_dir}/{service}")
         stdout.channel.recv_exit_status()
         stdin, stdout, stderr = ssh_client.exec_command(f'systemctl enable {service}')
         stdout.channel.recv_exit_status()
