@@ -49,11 +49,11 @@ def clean_file():
         os.system(f'mount {usb_backingfile} /mnt/')
         os.system(f'rm -rf /mnt/*')
         os.system(f'umount /mnt/')
-        time.sleep(3)
+        time.sleep(5)
         os.system(f'modprobe g_mass_storage file={usb_backingfile} stall=0 removable=1')
     except:
         os.system(f'umount /mnt/')
-        time.sleep(3)
+        time.sleep(5)
         os.system(f'modprobe g_mass_storage file={usb_backingfile} stall=0 removable=1')
     log(f"Clean USB")
 
@@ -77,12 +77,12 @@ def move_file_to_usb(fpath):
         shutil.copy2(fpath, dest_path)
         os.remove(fpath)
         os.system(f'umount /mnt/')
-        time.sleep(3)
+        time.sleep(5)
         os.system(f'modprobe g_mass_storage file={usb_backingfile} stall=0 removable=1')
         log(f"USB File: Move file {fpath} to USB")
     except:
         os.system(f'umount /mnt/')
-        time.sleep(3)
+        time.sleep(5)
         os.system(f'modprobe g_mass_storage file={usb_backingfile} stall=0 removable=1')
         log(f"USB File: Move file failed: {fpath}")
 
