@@ -197,7 +197,7 @@ def case_sensitivity():
     # client_ip = data['device_ip']
     # active_devices_dict[client_ip]['dir'] = data['dir']
     cfg['case_sensitivity'] = data['case_sensitivity']
-    print(data)
+    # print(data)
     barcode_stream.put(f'Switch case_sensitivity mode: {cfg["case_sensitivity"]}')
     dump_cfg()
     return "ok"
