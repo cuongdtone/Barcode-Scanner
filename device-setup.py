@@ -60,8 +60,10 @@ def install_barcode(ssh_client):
         print()
         # sftp_client.put(execute_file, f'{script_dir}/{service}')
         # sftp_client.put(service_file, f'{service_dir}/{service}.service')
-        ssh_client.exec_command(f'mv {rootfs}/{service}/{service} {script_dir}/{service}')
-        ssh_client.exec_command(f'mv {rootfs}/{service}/{service}.service {service_dir}/{service}.service')
+        stdin, stdout, stderr = ssh_client.exec_command(f'mv {rootfs}/{service}/{service} {script_dir}/{service}')
+        wait_ssh(stdout)
+        stdin, stdout, stderr = ssh_client.exec_command(f'mv {rootfs}/{service}/{service}.service {service_dir}/{service}.service')
+        wait_ssh(stdout)
 
         ssh_client.exec_command(f'chmod +x {script_dir}/{service}')
         ssh_client.exec_command(f"sed -i 's/\r$//' {script_dir}/{service}")
@@ -93,6 +95,7 @@ def device_setup(ip):
             ##################################################################
             ssh.close()
         except Exception as e:
+            print(e)
             print(f"SSH ip: {ip}: failed")
         sock.close()
 
