@@ -50,7 +50,7 @@ def install_barcode(ssh_client):
     wait_ssh(stdout)
     stdin, stdout, stderr = ssh_client.exec_command(f'rm -rf {rootfs}')
     wait_ssh(stdout)
-    stdin, stdout, stderr = ssh_client.exec_command(f'cd /root && git clone https://github.com/cuongdtone/Barcode-Scanner.git -b "pi-package"')
+    stdin, stdout, stderr = ssh_client.exec_command(f'cd /root && git clone https://github.com/cuongdtone/Barcode-Scanner.git --depth 1 -b "pi-package"')
     wait_ssh(stdout)
 
     for service in service_list:
