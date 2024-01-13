@@ -52,6 +52,12 @@ class EditDeviceDialog(QDialog):
         self.label3 = QLabel("Password")
         self.line_edit3 = QLineEdit()
 
+        self.label4 = QLabel("HOST IP")
+        self.line_edit4 = QLineEdit()
+
+        self.label5 = QLabel("PORT")
+        self.line_edit5 = QLineEdit("8081")
+
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
@@ -59,16 +65,21 @@ class EditDeviceDialog(QDialog):
         layout = QGridLayout()
         layout.addWidget(self.label1, 0, 0)
         layout.addWidget(self.line_edit1, 0, 1)
-        # layout.addWidget(self.label2, 1, 0)
-        # layout.addWidget(self.line_edit2, 1, 1)
-        # layout.addWidget(self.label3, 2, 0)
-        # layout.addWidget(self.line_edit3, 2, 1)
-        layout.addWidget(self.button_box, 3, 0, 1, 2) 
+        layout.addWidget(self.label2, 1, 0)
+        layout.addWidget(self.line_edit2, 1, 1)
+        layout.addWidget(self.label3, 2, 0)
+        layout.addWidget(self.line_edit3, 2, 1)
+        layout.addWidget(self.label4, 3, 0)
+        layout.addWidget(self.line_edit4, 3, 1)
+        layout.addWidget(self.label5, 4, 0)
+        layout.addWidget(self.line_edit5, 4, 1)
+    
+        layout.addWidget(self.button_box, 5, 0, 1, 2) 
 
         self.setLayout(layout)
         
     def get_data(self):
-        return self.line_edit1.text(), self.line_edit2.text(), self.line_edit3.text()
+        return self.line_edit1.text(), self.line_edit2.text(), self.line_edit3.text(), self.line_edit4.text(), self.line_edit5.text()
     
 
 class AddDeviceDialog(QDialog):
@@ -485,10 +496,10 @@ class DeviceManagerGUI(QMainWindow):
             diaglog = EditDeviceDialog()
             diaglog.init(name=self.selected_device.name)
             if diaglog.exec_() == QDialog.Accepted:
-                name, ssid, pw = diaglog.get_data()
+                name, ssid, pw, host, port = diaglog.get_data()
                 if not self.selected_device.is_online():
                     self.update_gui.logger("Selected device is offline")
-                    return
+                    # return
                 if self.selected_device.name != name:
                     # self.selected_device.rename(name)
                     # server_url = 'http://127.0.0.1:8081/change_name'
@@ -504,9 +515,26 @@ class DeviceManagerGUI(QMainWindow):
                         self.update_gui.logger(f"Failed when edit device name [{self.selected_device.name}] to [{name}]")
                     self.update_gui.reload()
 
-                if ssid and pw:
+                if ssid and pw and host and port:
                     # todo: request to change wifi
-                    self.update_gui.logger(f"Edit wifi of device [{self.selected_device.name}]: {ssid}]")
+                    self.update_gui.logger(f"Editing wifi of device: [{self.selected_device.name}]: SSID {ssid}, HOST {host}:{port}]")
+                    device_url = f'http://{self.selected_device.ip}:8080/change_wifi'
+                    try:
+                        response = requests.post(device_url, json={"device_ip": self.selected_device.ip, 
+                                                                   "ssid": ssid, 
+                                                                   "password": pw,
+                                                                   "host": host,
+                                                                   "port": port
+                                                                   }, timeout=5)
+                        if response.status_code == 200:
+                            self.update_gui.logger(f"Edited device wifi [{self.selected_device.name}]")
+                        else:
+                            self.update_gui.logger(f"Failed when edite device info [{self.selected_device.name}]")
+                    except:
+                        self.update_gui.logger(f"Failed when edite device info [{self.selected_device.name}]")
+                        pass
+                self.update_gui.reload()
+
     
     def upload_task(self, path):
         self.update_gui.disable_upload()
