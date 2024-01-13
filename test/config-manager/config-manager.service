@@ -1,0 +1,10 @@
+[Unit]
+Description=Config Manager Service
+Before=usb-gadget-msc.service
+
+[Service]
+Type=oneshot
+ExecStart=/etc/config-manager
+
+[Install]
+WantedBy=multi-user.target

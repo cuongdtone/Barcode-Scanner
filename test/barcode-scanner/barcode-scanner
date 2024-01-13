@@ -1,0 +1,214 @@
+#!/usr/bin/python3
+
+import requests
+import os
+import json
+import evdev
+from evdev import InputDevice, categorize, ecodes
+from multiprocessing import Process
+from threading import Thread
+from queue import Queue
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+import time
+
+json_file = "/root/cfg.json"
+cfg_url = f"""http://127.0.0.1:8080/cfg"""
+
+def load_cfg():
+    try:
+        res = requests.get(url=cfg_url)
+        return res.json()
+    except:
+        with open(json_file) as file:
+            data_cfg = json.load(file)
+        return data_cfg
+
+data_cfg = load_cfg()
+
+work_dir = '/data'
+media = f'{work_dir}/media'
+os.makedirs(media, exist_ok=True)
+usb_backingfile = os.path.join(work_dir, 'usb_partition.img')
+
+barcode_buff = ''
+host_name = data_cfg['host']
+port = data_cfg['port']
+desktop_url = f'http://{host_name}:{port}/'
+logger_url = f'http://{host_name}:{port}/logger'
+
+CHARMAP = {
+        evdev.ecodes.KEY_1: ['1', '!'],
+        evdev.ecodes.KEY_2: ['2', '@'],
+        evdev.ecodes.KEY_3: ['3', '#'],
+        evdev.ecodes.KEY_4: ['4', '$'],
+        evdev.ecodes.KEY_5: ['5', '%'],
+        evdev.ecodes.KEY_6: ['6', '^'],
+        evdev.ecodes.KEY_7: ['7', '&'],
+        evdev.ecodes.KEY_8: ['8', '*'],
+        evdev.ecodes.KEY_9: ['9', '('],
+        evdev.ecodes.KEY_0: ['0', ')'],
+        evdev.ecodes.KEY_MINUS: ['-', '_'],
+        evdev.ecodes.KEY_EQUAL: ['=', '+'],
+        evdev.ecodes.KEY_TAB: ['\t', '\t'],
+        evdev.ecodes.KEY_Q: ['q', 'Q'],
+        evdev.ecodes.KEY_W: ['w', 'W'],
+        evdev.ecodes.KEY_E: ['e', 'E'],
+        evdev.ecodes.KEY_R: ['r', 'R'],
+        evdev.ecodes.KEY_T: ['t', 'T'],
+        evdev.ecodes.KEY_Y: ['y', 'Y'],
+        evdev.ecodes.KEY_U: ['u', 'U'],
+        evdev.ecodes.KEY_I: ['i', 'I'],
+        evdev.ecodes.KEY_O: ['o', 'O'],
+        evdev.ecodes.KEY_P: ['p', 'P'],
+        evdev.ecodes.KEY_LEFTBRACE: ['[', '{'],
+        evdev.ecodes.KEY_RIGHTBRACE: [']', '}'],
+        evdev.ecodes.KEY_A: ['a', 'A'],
+        evdev.ecodes.KEY_S: ['s', 'S'],
+        evdev.ecodes.KEY_D: ['d', 'D'],
+        evdev.ecodes.KEY_F: ['f', 'F'],
+        evdev.ecodes.KEY_G: ['g', 'G'],
+        evdev.ecodes.KEY_H: ['h', 'H'],
+        evdev.ecodes.KEY_J: ['j', 'J'],
+        evdev.ecodes.KEY_K: ['k', 'K'],
+        evdev.ecodes.KEY_L: ['l', 'L'],
+        evdev.ecodes.KEY_SEMICOLON: [';', ':'],
+        evdev.ecodes.KEY_APOSTROPHE: ['\'', '"'],
+        evdev.ecodes.KEY_BACKSLASH: ['\\', '|'],
+        evdev.ecodes.KEY_Z: ['z', 'Z'],
+        evdev.ecodes.KEY_X: ['x', 'X'],
+        evdev.ecodes.KEY_C: ['c', 'C'],
+        evdev.ecodes.KEY_V: ['v', 'V'],
+        evdev.ecodes.KEY_B: ['b', 'B'],
+        evdev.ecodes.KEY_N: ['n', 'N'],
+        evdev.ecodes.KEY_M: ['m', 'M'],
+        evdev.ecodes.KEY_COMMA: [',', '<'],
+        evdev.ecodes.KEY_DOT: ['.', '>'],
+        evdev.ecodes.KEY_SLASH: ['/', '?'],
+        evdev.ecodes.KEY_SPACE: [' ', ' '],
+}
+
+
+def log(msg):
+    try:
+        response = requests.post(logger_url, json={'msg': msg})
+    except:
+        pass
+
+def clean_usb():
+    url = 'http://127.0.0.1:8080/clean'
+    try:
+        response = requests.get(url)
+    except:
+        log("Fail when clean usb")
+        pass
+
+def move_to_usb(fpath):
+    url = 'http://127.0.0.1:8080/addfile'
+    data = {
+        'fpath': fpath
+    }
+    response = requests.post(url, json=data)
+
+request_flag = False
+
+def request_barcode(barcode):
+    global request_flag
+    request_flag = True
+    url = desktop_url + 'barcode'
+
+    data = {
+        'barcode': barcode
+    }
+    try:
+        response = requests.post(url, json=data)
+        if response.status_code == 200:
+            try:
+                attachment_filename = response.headers.get('Content-Disposition').split('filename=')[1]
+                save_path = f'{media}/{attachment_filename}'
+                with open(save_path, 'wb') as file:
+                    file.write(response.content)
+                log(f"Received file: {attachment_filename}")
+                move_to_usb(save_path)
+            except:
+                clean_usb()
+                pass
+        else:
+            print("Error occurred while sending the request.")
+    except:
+        pass
+    request_flag = False
+    
+
+
+def barcode_scanner(barcode_device):
+    barcode_device.grab()
+    barcode = ""
+    shift_active = False
+    for event in barcode_device.read_loop():
+        if event.type == ecodes.EV_KEY:
+            data = categorize(event)
+            if data.keystate == 1 and data.scancode != ecodes.KEY_RESERVED:
+                if data.scancode == ecodes.KEY_ENTER:
+                    print('Barcode: ', barcode, barcode_device)
+                    if request_flag is False:
+                        Thread(target=request_barcode, args=(barcode, )).start()
+                    else:
+                        log('Wait ...')
+                    barcode = ""
+                elif data.scancode == ecodes.KEY_LEFTSHIFT or data.scancode == ecodes.KEY_RIGHTSHIFT:
+                    shift_active = True
+                else:
+                    barcode += CHARMAP.get(data.scancode, "?")[1 if shift_active else 0]
+                    shift_active = False
+
+    print("End")
+
+
+
+def main_barcode(barcode_device_path):
+    log(f"Device listenning: {barcode_device_path}")
+    barcode_device = InputDevice(barcode_device_path)
+    if "sunxi-ir" in barcode_device.name.lower(): 
+        return
+    try:
+        log(barcode_device_path)
+        barcode_scanner(barcode_device)
+        barcode_device.ungrab()
+    except:
+        try:
+            barcode_device.ungrab()
+        except:
+            pass
+    log(f"Device remove: {barcode_device_path}")
+
+print('Barcode Scanner: start')
+
+class InputEventHandler(FileSystemEventHandler):
+    def on_created(self, event):
+        if not event.is_directory and "event" in event.src_path:
+            Thread(target=main_barcode, args=(event.src_path, )).start()
+
+
+path = "/dev/input"  # Đường dẫn đến thư mục /dev/input
+
+
+for p in os.listdir(path):
+    if p.startswith('event'):
+        p = os.path.join(path, p)
+        Thread(target=main_barcode, args=(p, )).start()
+
+event_handler = InputEventHandler()
+observer = Observer()
+
+observer.schedule(event_handler, path, recursive=False)
+observer.start()
+
+try:
+    while True:
+        time.sleep(0.05)
+        pass
+except KeyboardInterrupt:
+    observer.stop()
+
+observer.join()

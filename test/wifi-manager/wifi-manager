@@ -1,0 +1,57 @@
+#!/usr/bin/python3
+import os
+import subprocess
+import json
+import time
+import requests
+
+
+def run_device_command(cmd):
+    cmd = cmd.strip().split()
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    return result.stdout if result.returncode == 0 else result.stderr
+
+json_file = "/root/cfg.json"
+data_cfg = None
+cfg_url = f"""http://127.0.0.1:8080/cfg"""
+
+def load_cfg():
+    try:
+        res = requests.get(url=cfg_url)
+        return res.json()
+    except:
+        with open(json_file) as file:
+            data_cfg = json.load(file)
+        return data_cfg
+
+with open(json_file) as file:
+    data_cfg = json.load(file)
+
+desktop_url = f"""http://{data_cfg['host']}:{data_cfg['port']}/device_register"""
+alive_flag = True
+
+
+while True:
+    out = run_device_command(f'iwgetid')
+    data_cfg = load_cfg()
+    print(out)
+    if data_cfg['ssid'] not in out:
+        alive_flag = False
+        if os.path.exists('/etc/wifi_connected'):
+            os.remove('/etc/wifi_connected')
+        os.system(f"""nmcli d wifi connect "{data_cfg['ssid']}" password "{data_cfg['password']}""")
+        time.sleep(1)
+    else:
+        if alive_flag is False:
+            print('Reconnect')
+            # os.system('systemctl restart usb-manager')
+            alive_flag = True
+        os.system('touch /etc/wifi_connected')
+        try:
+            response = requests.post(desktop_url, json={'device_id': data_cfg['device_id']}, timeout=3)
+            # if response.status_code == 200:
+            #     time.sleep(1)
+            # else:
+            time.sleep(1)
+        except:
+            pass

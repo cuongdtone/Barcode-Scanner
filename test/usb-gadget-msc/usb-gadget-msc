@@ -1,0 +1,29 @@
+#!/usr/bin/python3
+import os
+import subprocess
+import time
+
+work_dir = '/data'
+usb_backingfile = os.path.join(work_dir, 'usb_partition.img')
+usb_size = 1024 # MB
+mode = 0o666
+
+
+def run_device_command(cmd):
+    cmd = cmd.strip().split()
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    return result.stdout if result.returncode == 0 else result.stderr
+
+
+os.makedirs(work_dir, mode, exist_ok=True)
+
+
+if not os.path.exists(usb_backingfile):
+    run_device_command(f'dd if=/dev/zero of={usb_backingfile} bs=1M count={usb_size} status=progress conv=fsync')
+    out = run_device_command(f'mkdosfs {usb_backingfile} -F 32 -I')
+    if 'mkfs.fat' not in out:
+        os.system('echo "USB-MSC Error: Cannot create partition" >> /data/usb-msc.log')
+        exit(1)
+
+time.sleep(5)
+run_device_command(f'modprobe g_mass_storage file={usb_backingfile} stall=0 removable=1')

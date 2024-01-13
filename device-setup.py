@@ -28,8 +28,13 @@ def wait_ssh(stdout):
 
 
 def install_barcode(ssh_client):
+    rootfs = "/root/barcode-package/"
     sftp_client = ssh_client.open_sftp()
     service_list = ['barcode-scanner', 'config-manager', 'usb-gadget-msc', 'usb-manager', 'wifi-manager']
+    sftp_client.put("barcode-package.zip", f'/root/')
+    stdin, stdout, stderr = ssh_client.exec_command(f'unzip /root/barcode-package.zip -d /root/barcode-package/')
+    wait_ssh(stdout)
+    
     service_dir = '/etc/systemd/system/'
     script_dir = '/etc/'
     stdin, stdout, stderr = ssh_client.exec_command(f'sudo apt-get -y update')
@@ -53,11 +58,13 @@ def install_barcode(ssh_client):
         print(os.path.exists(execute_file), execute_file)
         print(os.path.exists(service_file), service_file)
         print()
-        sftp_client.put(execute_file, f'{script_dir}/{service}')
-        sftp_client.put(service_file, f'{service_dir}/{service}.service')
+        # sftp_client.put(execute_file, f'{script_dir}/{service}')
+        # sftp_client.put(service_file, f'{service_dir}/{service}.service')
+        ssh_client.exec_command(f'mv {rootfs}/{service}/{service} {script_dir}/{service}')
+        ssh_client.exec_command(f'mv {rootfs}/{service}/{service}.service {service_dir}/{service}.service')
 
         ssh_client.exec_command(f'chmod +x {script_dir}/{service}')
-        ssh_client.exec_command(f"sed -i 's/\r$//' rvice}")
+        ssh_client.exec_command(f"sed -i 's/\r$//' {script_dir}/{service}")
         stdout.channel.recv_exit_status()
         stdin, stdout, stderr = ssh_client.exec_command(f'systemctl enable {service}')
         stdout.channel.recv_exit_status()
