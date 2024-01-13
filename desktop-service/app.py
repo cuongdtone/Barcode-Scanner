@@ -180,12 +180,12 @@ class DeviceManagerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("EmbConnect Wifi")
-        self.resize(1100, 600)
+        self.setFixedSize(1100, 600)
+        # self.resize(1100, 600)
         button_width = 120
 
         self.devices = []
         self.get_devices()
-        print(self.devices)
         self.update_gui = UpdateGUI()
         self.update_gui.reloadSignal.connect(self.reload)
         self.update_gui.addLog.connect(self.add_log)
@@ -198,6 +198,7 @@ class DeviceManagerGUI(QMainWindow):
         self.device_table_widget = QTableWidget()
         self.device_table_widget.setColumnCount(6)
         self.device_table_widget.setItemDelegateForColumn(2, CircularDotDelegate())
+        self.device_table_widget.setColumnWidth(1, 200)
         self.device_table_widget.setColumnWidth(4, 300)
         self.device_table_widget.setColumnWidth(5, 300)
         self.device_table_widget.setEditTriggers(QAbstractItemView.NoEditTriggers)
