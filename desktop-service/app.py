@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, \
     QLabel, QVBoxLayout, QWidget, QListWidget, QPushButton, \
     QTableWidget, QTableWidgetItem, QTextEdit, QLineEdit, QDialog, \
     QHBoxLayout, QStyledItemDelegate, QStyle, QDialogButtonBox, \
-    QDialogButtonBox, QGridLayout, QFileDialog, QAbstractItemView
+    QDialogButtonBox, QGridLayout, QFileDialog, QAbstractItemView, QRadioButton, QCheckBox
 from PyQt5.QtGui import QColor, QPainter, QBrush, QPen, QPalette
 
 from PyQt5.QtCore import Qt
@@ -254,6 +254,10 @@ class DeviceManagerGUI(QMainWindow):
         self.select_folder_button.setEnabled(False)
         self.select_folder_button.clicked.connect(self.select_source_folder)
 
+        self.cs_button1 = QCheckBox("Case Sensitivity")
+        self.cs_button1.setChecked(True)
+        self.cs_button1.clicked.connect(self.handle_cs_button)
+
         self.clear_usb_button = QPushButton("Clear USB")
         self.clear_usb_button.setEnabled(False)
         self.clear_usb_button.clicked.connect(self.clear_usb)
@@ -279,6 +283,7 @@ class DeviceManagerGUI(QMainWindow):
         button_device_layout.addWidget(self.setup_button)
         button_device_layout.addWidget(self.upload_button)
         button_device_layout.addWidget(self.select_folder_button)
+        button_device_layout.addWidget(self.cs_button1)
         button_device_layout.addWidget(self.clear_usb_button)
         button_device_layout.addWidget(self.repair_usb_button)
 
@@ -294,6 +299,13 @@ class DeviceManagerGUI(QMainWindow):
 
         self.alive = True
         Thread(target=self.update_screen).start()
+
+    def handle_cs_button(self, state):
+        url = f'http://127.0.0.1:8081/case_sensitivity'
+        try:
+            response = requests.post(url, json={'case_sensitivity': state})
+        except:
+            pass
 
     def repair_usb(self):
         if self.selected_device:

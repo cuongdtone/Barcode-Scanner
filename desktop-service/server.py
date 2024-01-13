@@ -78,6 +78,14 @@ def barcode():
         # if client_ip in active_devices_dict.keys():
         #     barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} file sent')
         file_path = f'{dir_barcode}/{barcode}'
+        if not os.path.exists(file_path):
+            if cfg['case_sensitivity']:
+                for ff in os.listdir(dir_barcode):
+                    fo = ff
+                    if str(ff).lower() == str(barcode).lower():
+                        file_path = f'{dir_barcode}/{fo}'
+                        break
+
         if os.path.exists(file_path):
             barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} file sent')
             return send_file(file_path, download_name=os.path.basename(file_path), as_attachment=True)
@@ -181,6 +189,17 @@ def select_dir():
     dump_cfg()
     return "ok"
 
+@app.route('/case_sensitivity', methods=['POST'])
+def case_sensitivity():
+    global active_devices_dict
+    data = request.get_json()
+    # client_ip = data['device_ip']
+    # active_devices_dict[client_ip]['dir'] = data['dir']
+    cfg['case_sensitivity'] = data['case_sensitivity']
+    print(data)
+    barcode_stream.put(f'Switch case_sensitivity mode: {cfg["case_sensitivity"]}')
+    dump_cfg()
+    return "ok"
 
 @app.route('/change_name', methods=['POST'])
 def change_name():
