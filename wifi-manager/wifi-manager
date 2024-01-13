@@ -39,7 +39,10 @@ while True:
         alive_flag = False
         if os.path.exists('/etc/wifi_connected'):
             os.remove('/etc/wifi_connected')
-        os.system(f"""nmcli d wifi connect "{data_cfg['ssid']}" password "{data_cfg['password']}""")
+        ssid = data_cfg['ssid']
+        password = data_cfg['password']
+        command = f'nmcli d wifi connect "{ssid}" password "{password}"'
+        os.system(command)
         time.sleep(1)
     else:
         if alive_flag is False:
