@@ -16,11 +16,18 @@ app = Flask(__name__)
 
 max_longevity = 5
 
+cfg  = {'source_dir': None}
 active_devices_dict = {}
 cache_path = 'cache_active_devices_dict.json'
+cache_path_cfg = 'cache_cfg.json'
+
 if os.path.exists(cache_path):
     with open(cache_path, 'r') as file:
         active_devices_dict = json.load(file)
+
+if os.path.exists(cache_path_cfg):
+    with open(cache_path_cfg, 'r') as file:
+        cfg = json.load(file)
 
 for client_ip in active_devices_dict.keys():
     active_devices_dict[client_ip]['longevity'] = max_longevity
@@ -30,6 +37,10 @@ barcode_stream = Queue(maxsize=200)
 def dump_cache():
     with open(cache_path, 'w') as file:
         json.dump(active_devices_dict, file)
+
+def dump_cfg():
+    with open(cache_path_cfg, 'w') as file:
+        json.dump(cfg, file)
 
 def alive_thread():
     global active_devices_dict
@@ -53,10 +64,10 @@ def barcode():
     data = request.get_json()
     barcode = data['barcode']
     client_ip = request.remote_addr
-    dir_barcode = None
-    if client_ip in active_devices_dict.keys():
-        dir_barcode = active_devices_dict[client_ip]['dir']
-    else:
+    dir_barcode = cfg.get('source_dir')
+    if client_ip not in active_devices_dict.keys():
+    #     dir_barcode = active_devices_dict[client_ip]['dir']
+    # else:
         barcode_stream.put(f'{now} [{client_ip}] Barcode sent from unregister device')
         return "clean"
 
@@ -164,9 +175,10 @@ def clear_cache():
 def select_dir():
     global active_devices_dict
     data = request.get_json()
-    client_ip = data['device_ip']
-    active_devices_dict[client_ip]['dir'] = data['dir']
-    dump_cache()
+    # client_ip = data['device_ip']
+    # active_devices_dict[client_ip]['dir'] = data['dir']
+    cfg['source_dir'] = data['dir']
+    dump_cfg()
     return "ok"
 
 
@@ -186,7 +198,7 @@ def devices():
     for client_ip, value in active_devices_dict.items():
         device_id = value['name']
         status = value['alive']
-        source_folder = value['dir']
+        source_folder = cfg.get('source_dir')
         usb = value['usb']
         active_devices_list.append([device_id, client_ip, status, source_folder, usb])
     return jsonify(active_devices_list)
