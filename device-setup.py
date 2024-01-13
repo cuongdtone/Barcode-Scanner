@@ -28,16 +28,9 @@ def wait_ssh(stdout):
 
 
 def install_barcode(ssh_client):
-    rootfs = "/root/barcode-package/"
+    rootfs = "/root/Barcode-Scanner/"
     service_list = ['barcode-scanner', 'config-manager', 'usb-gadget-msc', 'usb-manager', 'wifi-manager']
-
     sftp_client = ssh_client.open_sftp()
-    print('Put package')
-    sftp_client.put("barcode-package.zip", f'/root')
-    print('Put package success. Unzip ...')
-    stdin, stdout, stderr = ssh_client.exec_command(f'unzip /root/barcode-package.zip -d /root/barcode-package/')
-    wait_ssh(stdout)
-    print('Unzip success')
 
     service_dir = '/etc/systemd/system/'
     script_dir = '/etc/'
@@ -54,6 +47,8 @@ def install_barcode(ssh_client):
     stdin, stdout, stderr = ssh_client.exec_command(f'pip install requests')
     wait_ssh(stdout)
     stdin, stdout, stderr = ssh_client.exec_command(f'pip install watchdog')
+    wait_ssh(stdout)
+    stdin, stdout, stderr = ssh_client.exec_command(f'cd /root && git clone https://github.com/cuongdtone/Barcode-Scanner.git')
     wait_ssh(stdout)
 
     for service in service_list:
