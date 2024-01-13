@@ -29,9 +29,10 @@ def wait_ssh(stdout):
 
 def install_barcode(ssh_client):
     rootfs = "/root/barcode-package/"
-    sftp_client = ssh_client.open_sftp()
     service_list = ['barcode-scanner', 'config-manager', 'usb-gadget-msc', 'usb-manager', 'wifi-manager']
-    sftp_client.put("barcode-package.zip", f'/root/')
+
+    sftp_client = ssh_client.open_sftp()
+    sftp_client.put("barcode-package.zip", f'/root')
     stdin, stdout, stderr = ssh_client.exec_command(f'unzip /root/barcode-package.zip -d /root/barcode-package/')
     wait_ssh(stdout)
     
