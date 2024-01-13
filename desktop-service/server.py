@@ -28,6 +28,7 @@ if os.path.exists(cache_path):
 if os.path.exists(cache_path_cfg):
     with open(cache_path_cfg, 'r') as file:
         cfg = json.load(file)
+        cfg['case_sensitivity'] = True
 
 for client_ip in active_devices_dict.keys():
     active_devices_dict[client_ip]['longevity'] = max_longevity
