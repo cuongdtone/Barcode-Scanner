@@ -185,16 +185,24 @@ def cfg():
     global data_cfg
     return jsonify(data_cfg)
 
-# @app.route('/change_wifi', methods=['POST'])
-# def change_wifi():
-#     global data_cfg
-#     data = request.get_json()
-#     ssid = data['ssid']
-#     password = data['password']
-#     data_cfg['ssid'] = ssid
-#     data_cfg['password'] = password
-#     dump_cfg()
-#     return jsonify({'status': 'True'})
+@app.route('/change_wifi', methods=['POST'])
+def change_wifi():
+    global data_cfg
+    data = request.get_json()
+    ssid = data['ssid']
+    password = data['password']
+    host = data['host']
+    port = data['port']
+
+    if ssid:
+        data_cfg['ssid'] = ssid
+        data_cfg['password'] = password
+    if host:
+        data_cfg['host'] = host
+        data_cfg['port'] = port
+
+    dump_cfg()
+    return jsonify({'status': 'True'})
 
 
 if __name__ == "__main__":
