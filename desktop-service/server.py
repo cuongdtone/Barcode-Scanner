@@ -233,5 +233,29 @@ def stream_data():
             time.sleep(0.2)
     return Response(generate(), mimetype='text/plain')
 
+@app.route('/upload', methods=['POST'])
+def upload():
+    def upload_task(ip, name, path):
+        url = f'http://{ip}:8080/upload'
+        with open(path, 'rb') as file:
+            try:
+                response = requests.post(url, files={'file': file})
+                if response.status_code != 200:
+                    barcode_stream.put(f"[IS]  Device offline: [{name}][{response.status_code}]!!\n")
+                else:
+                    barcode_stream.put(f"[IS] Uploaded: [{name}][{response.status_code}]!!\n")
+            except:
+                barcode_stream.put(f"[IS] Cannot upload: [{name}][Connect error]!!\n")
+
+    data = request.get_json()
+    file_path = data.get('fpath')
+    ip = data.get('ip')
+    name = data.get('name')
+    if file_path and ip:
+        Thread(target=upload_task, args=(ip, name, file_path, )).start()
+    else:
+        barcode_stream.put(f"[IS] Cannot upload: [{name}][Task error]!!\n")
+    return "ok"
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8081, debug=False)

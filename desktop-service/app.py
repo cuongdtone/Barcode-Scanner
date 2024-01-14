@@ -547,23 +547,8 @@ class DeviceManagerGUI(QMainWindow):
                         pass
                 self.update_gui.reload()
 
-    
-    def upload_task(self, path):
-        self.update_gui.disable_upload()
-        url = f'http://{self.selected_device.ip}:8080/upload'
-        with open(path, 'rb') as file:
-            try:
-                response = requests.post(url, files={'file': file})
-                if response.status_code != 200:
-                #     self.update_gui.logger(f"Uploaded {path} to [{self.selected_device.name}][{response.status_code}]!!")
-                # else:
-                    self.update_gui.logger(f"Device offline: [{self.selected_device.name}][{response.status_code}]!!\n")
-            except:
-                self.update_gui.logger(f"Cannot upload: [{self.selected_device.name}][Connect error]!!\n")
-        self.update_gui.enable_upload()
-
     def upload_to_device(self):
-        if self.selected_device: # and self.selected_device.is_online():
+        if self.selected_device and self.selected_device.is_online():
             file_dialog = QFileDialog()
             file_dialog.setFileMode(QFileDialog.ExistingFile)
             file_dialog.setWindowTitle("Select File")
@@ -573,8 +558,17 @@ class DeviceManagerGUI(QMainWindow):
                 if selected_files:
                     file_path = selected_files[0]
                     if os.path.exists(file_path):
-                        self.update_gui.logger(f"Uploading {file_path} to [{self.selected_device.name}]")
-                        Thread(target=self.upload_task, args=(file_path, )).start()
+                        self.update_gui.logger(f"[UI] Uploading {file_path} to [{self.selected_device.name}]")
+                        url = 'http://127.0.0.1:8081/upload'
+                        try:
+                            response = requests.post(url, json={'ip': self.selected_device.ip, 'name': self.selected_device.name, 'fpath': file_path})
+                            if response.status_code != 200:
+                                self.update_gui.logger(f"[UI] Cannot upload {file_path} to [{self.selected_device.name}] [Internal server error]")
+                        except:
+                            self.update_gui.logger(f"[UI] Cannot upload {file_path} to [{self.selected_device.name}] [Internal server error]")
+        else:
+            self.update_gui.logger(f"[UI] Device offline")
+
 
 
     def select_source_folder(self):
