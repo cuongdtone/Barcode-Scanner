@@ -487,85 +487,97 @@ class DeviceManagerGUI(QMainWindow):
                 self.device_table_widget.item(row, 4).setBackground(brush)
 
     def device_selected(self, row, column):
-        if row < len(self.devices):
-            self.selected_device = self.devices[row]
-            if column == 4:
-                if self.selected_device.source_folder is not None:
-                    list_dir = os.listdir(self.selected_device.source_folder)
-                    self.update_gui.logger(f'List files: {list_dir}')
+        try:
+            if row < len(self.devices):
+                self.selected_device = self.devices[row]
+                if column == 4:
+                    if self.selected_device.source_folder is not None:
+                        list_dir = os.listdir(self.selected_device.source_folder)
+                        self.update_gui.logger(f'List files: {list_dir}')
 
-            self.device_info_label.setText(
-                f"Name: {self.selected_device.name}\nStatus: {self.selected_device.status.str_status()}\nIP: {self.selected_device.ip}\nFolder: {self.selected_device.source_folder}")
-            self.setup_button.setEnabled(True)
-            self.upload_button.setEnabled(True)
-            self.select_folder_button.setEnabled(True)
-            self.clear_usb_button.setEnabled(True)
-            self.repair_usb_button.setEnabled(True)
-            self.remove_button.setEnabled(True)
+                self.device_info_label.setText(
+                    f"Name: {self.selected_device.name}\nStatus: {self.selected_device.status.str_status()}\nIP: {self.selected_device.ip}\nFolder: {self.selected_device.source_folder}")
+                self.setup_button.setEnabled(True)
+                self.upload_button.setEnabled(True)
+                self.select_folder_button.setEnabled(True)
+                self.clear_usb_button.setEnabled(True)
+                self.repair_usb_button.setEnabled(True)
+                self.remove_button.setEnabled(True)
+        except:
+            pass
 
     def edit_device(self):
         if self.selected_device:
-            diaglog = EditDeviceDialog()
-            diaglog.init(name=self.selected_device.name)
-            if diaglog.exec_() == QDialog.Accepted:
-                name, ssid, pw, host, port = diaglog.get_data()
-                if not self.selected_device.is_online():
-                    self.update_gui.logger("Selected device is offline")
-                    # return
-                if self.selected_device.name != name:
-                    # self.selected_device.rename(name)
-                    # server_url = 'http://127.0.0.1:8081/change_name'
-                    device_url = f'http://{self.selected_device.ip}:8080/change_name'
-                    try:
-                        response = requests.post(device_url, json={"device_ip": self.selected_device.ip, "name": name}, timeout=3)
-                        # requests.post(server_url, json={"device_ip": self.selected_device.ip, "name": name}, timeout=2)
-                        if response.status_code == 200:
-                            self.update_gui.logger(f"Edited device name [{self.selected_device.name}] to [{name}]")
-                        else:
-                            self.update_gui.logger(f"Failed when edite device name [{self.selected_device.name}] to [{name}] [{response.status_code}]")
-                    except:
-                        self.update_gui.logger(f"Failed when edit device name [{self.selected_device.name}] to [{name}]")
-                    self.update_gui.reload()
+            try:
+                diaglog = EditDeviceDialog()
+                diaglog.init(name=self.selected_device.name)
+                if diaglog.exec_() == QDialog.Accepted:
+                    name, ssid, pw, host, port = diaglog.get_data()
+                    if not self.selected_device.is_online():
+                        self.update_gui.logger("Selected device is offline")
+                        # return
+                    if self.selected_device.name != name:
+                        # self.selected_device.rename(name)
+                        # server_url = 'http://127.0.0.1:8081/change_name'
+                        device_url = f'http://{self.selected_device.ip}:8080/change_name'
+                        try:
+                            response = requests.post(device_url, json={"device_ip": self.selected_device.ip, "name": name}, timeout=3)
+                            # requests.post(server_url, json={"device_ip": self.selected_device.ip, "name": name}, timeout=2)
+                            if response.status_code == 200:
+                                self.update_gui.logger(f"Edited device name [{self.selected_device.name}] to [{name}]")
+                            else:
+                                self.update_gui.logger(f"Failed when edite device name [{self.selected_device.name}] to [{name}] [{response.status_code}]")
+                        except:
+                            self.update_gui.logger(f"Failed when edit device name [{self.selected_device.name}] to [{name}]")
+                        self.update_gui.reload()
 
-                if ssid or host:
-                    # todo: request to change wifi
-                    self.update_gui.logger(f"Editing wifi of device: [{self.selected_device.name}]: SSID {ssid}, HOST {host}:{port}]")
-                    device_url = f'http://{self.selected_device.ip}:8080/change_wifi'
-                    try:
-                        response = requests.post(device_url, json={"device_ip": self.selected_device.ip, 
-                                                                   "ssid": ssid, 
-                                                                   "password": pw,
-                                                                   "host": host,
-                                                                   "port": port
-                                                                   }, timeout=5)
-                        if response.status_code == 200:
-                            self.update_gui.logger(f"Edited device wifi [{self.selected_device.name}]")
-                        else:
+                    if ssid or host:
+                        # todo: request to change wifi
+                        self.update_gui.logger(f"Editing wifi of device: [{self.selected_device.name}]: SSID {ssid}, HOST {host}:{port}]")
+                        device_url = f'http://{self.selected_device.ip}:8080/change_wifi'
+                        try:
+                            response = requests.post(device_url, json={"device_ip": self.selected_device.ip, 
+                                                                    "ssid": ssid, 
+                                                                    "password": pw,
+                                                                    "host": host,
+                                                                    "port": port
+                                                                    }, timeout=5)
+                            if response.status_code == 200:
+                                self.update_gui.logger(f"Edited device wifi [{self.selected_device.name}]")
+                            else:
+                                self.update_gui.logger(f"Failed when edite device info [{self.selected_device.name}]")
+                        except:
                             self.update_gui.logger(f"Failed when edite device info [{self.selected_device.name}]")
-                    except:
-                        self.update_gui.logger(f"Failed when edite device info [{self.selected_device.name}]")
-                        pass
-                self.update_gui.reload()
+                            pass
+                    self.update_gui.reload()
+            except:
+                pass
 
     def upload_to_device(self):
         if self.selected_device and self.selected_device.is_online():
-            file_dialog = QFileDialog()
-            file_dialog.setFileMode(QFileDialog.ExistingFile)
-            file_dialog.setWindowTitle("Select File")
-            file_dialog.setNameFilter("All Files (*.*)")
-            if file_dialog.exec_() == QFileDialog.Accepted:
-                selected_files = file_dialog.selectedFiles()
-                if selected_files:
-                    file_path = selected_files[0]
-                    if os.path.exists(file_path):
-                        self.update_gui.logger(f"[UI] Uploading {file_path} to [{self.selected_device.name}]")
-                        url = 'http://127.0.0.1:8081/upload'
-                        try:
-                            response = requests.post(url, json={'ip': self.selected_device.ip, 'name': self.selected_device.name, 'fpath': file_path})
-                            if response.status_code != 200:
-                                self.update_gui.logger(f"[UI] Cannot upload {file_path} to [{self.selected_device.name}] [Internal server error]")
-                        except:
-                            self.update_gui.logger(f"[UI] Cannot upload {file_path} to [{self.selected_device.name}] [Internal server error]")
+            try:
+                device_name = self.selected_device.name
+                device_ip = self.selected_device.ip
+                file_dialog = QFileDialog()
+                file_dialog.setFileMode(QFileDialog.ExistingFile)
+                file_dialog.setWindowTitle("Select File")
+                file_dialog.setNameFilter("All Files (*.*)")
+                if file_dialog.exec_() == QFileDialog.Accepted:
+                    selected_files = file_dialog.selectedFiles()
+                    if selected_files:
+                        file_path = selected_files[0]
+                        if os.path.exists(file_path):
+                            self.update_gui.logger(f"[UI] Uploading {file_path} to [{device_name}]")
+                            url = 'http://127.0.0.1:8081/upload'
+                            try:
+                                response = requests.post(url, json={'ip': device_ip, 'name': device_name, 'fpath': file_path})
+                                if response.status_code != 200:
+                                    self.update_gui.logger(f"[UI] Cannot upload {file_path} to [{device_name}] [Internal server error]")
+                            except:
+                                self.update_gui.logger(f"[UI] Cannot upload {file_path} to [{device_name}] [Internal server error]")
+            except:
+                self.update_gui.logger(f"[UI] Try again !")
+
         else:
             self.update_gui.logger(f"[UI] Device offline")
 
