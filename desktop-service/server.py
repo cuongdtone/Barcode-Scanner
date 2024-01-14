@@ -14,7 +14,7 @@ os.chdir(script_dir)
 
 app = Flask(__name__)
 
-max_longevity = 5
+max_longevity = 30
 
 cfg  = {'source_dir': None}
 active_devices_dict = {}
