@@ -527,7 +527,7 @@ class DeviceManagerGUI(QMainWindow):
                         self.update_gui.logger(f"Failed when edit device name [{self.selected_device.name}] to [{name}]")
                     self.update_gui.reload()
 
-                if ssid and pw and host and port:
+                if ssid or host:
                     # todo: request to change wifi
                     self.update_gui.logger(f"Editing wifi of device: [{self.selected_device.name}]: SSID {ssid}, HOST {host}:{port}]")
                     device_url = f'http://{self.selected_device.ip}:8080/change_wifi'
