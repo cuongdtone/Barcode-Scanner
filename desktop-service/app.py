@@ -191,7 +191,7 @@ class DeviceManagerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("EmbConnect Wifi")
-        self.setFixedSize(1100, 600)
+        self.setFixedSize(1100, 900)
         # self.resize(1100, 600)
         button_width = 120
 
@@ -213,7 +213,7 @@ class DeviceManagerGUI(QMainWindow):
         self.device_table_widget.setColumnWidth(4, 300)
         self.device_table_widget.setColumnWidth(5, 300)
         self.device_table_widget.setEditTriggers(QAbstractItemView.NoEditTriggers)
-
+        self.device_table_widget.setFixedHeight(600)
 
         self.device_table_widget.setHorizontalHeaderLabels(
             ["Wifi", "Name", "Status", "IP", "Source Folder", "USB File"])
