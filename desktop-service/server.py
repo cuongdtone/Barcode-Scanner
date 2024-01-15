@@ -221,6 +221,7 @@ def devices():
         source_folder = cfg.get('source_dir')
         usb = value['usb']
         active_devices_list.append([device_id, client_ip, status, source_folder, usb])
+    active_devices_list =  sorted(active_devices_list, key=lambda x: x[0])
     return jsonify(active_devices_list)
 
 @app.route('/stream')

@@ -42,6 +42,7 @@ class EditDeviceDialog(QDialog):
     def __init__(self, parent=None):
         super(EditDeviceDialog, self).__init__(parent)
         self.setWindowTitle("Edit Device")
+        self.apply_all = True
     
     def init(self, name):
         self.label1 = QLabel("Name:")
@@ -58,6 +59,10 @@ class EditDeviceDialog(QDialog):
         self.label5 = QLabel("PORT")
         self.line_edit5 = QLineEdit("8081")
 
+        self.apply_wf_config = QCheckBox("Aplly for all")
+        self.apply_wf_config.setChecked(True)
+        self.apply_wf_config.clicked.connect(self.handle_ap_button)
+
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
@@ -73,11 +78,16 @@ class EditDeviceDialog(QDialog):
         layout.addWidget(self.line_edit4, 3, 1)
         layout.addWidget(self.label5, 4, 0)
         layout.addWidget(self.line_edit5, 4, 1)
+
+        layout.addWidget(self.apply_wf_config, 5, 0)
     
-        layout.addWidget(self.button_box, 5, 0, 1, 2) 
+        layout.addWidget(self.button_box, 6, 0, 1, 2) 
 
         self.setLayout(layout)
-        
+    
+    def handle_ap_button(self, state):
+        self.apply_all = state
+
     def get_data(self):
         return self.line_edit1.text(), self.line_edit2.text(), self.line_edit3.text(), self.line_edit4.text(), self.line_edit5.text()
     
@@ -508,49 +518,57 @@ class DeviceManagerGUI(QMainWindow):
 
     def edit_device(self):
         if self.selected_device:
+            selected_device = self.selected_device
             try:
                 diaglog = EditDeviceDialog()
-                diaglog.init(name=self.selected_device.name)
+                diaglog.init(name=selected_device.name)
                 if diaglog.exec_() == QDialog.Accepted:
                     name, ssid, pw, host, port = diaglog.get_data()
-                    if not self.selected_device.is_online():
+                    if not selected_device.is_online():
                         self.update_gui.logger("Selected device is offline")
-                        # return
-                    if self.selected_device.name != name:
-                        # self.selected_device.rename(name)
+                        return
+                    if selected_device.name != name:
+                        # selected_device.rename(name)
                         # server_url = 'http://127.0.0.1:8081/change_name'
-                        device_url = f'http://{self.selected_device.ip}:8080/change_name'
+                        device_url = f'http://{selected_device.ip}:8080/change_name'
                         try:
-                            response = requests.post(device_url, json={"device_ip": self.selected_device.ip, "name": name}, timeout=3)
-                            # requests.post(server_url, json={"device_ip": self.selected_device.ip, "name": name}, timeout=2)
+                            response = requests.post(device_url, json={"device_ip": selected_device.ip, "name": name}, timeout=3)
+                            # requests.post(server_url, json={"device_ip": selected_device.ip, "name": name}, timeout=2)
                             if response.status_code == 200:
-                                self.update_gui.logger(f"Edited device name [{self.selected_device.name}] to [{name}]")
+                                self.update_gui.logger(f"Edited device name [{selected_device.name}] to [{name}]")
                             else:
-                                self.update_gui.logger(f"Failed when edite device name [{self.selected_device.name}] to [{name}] [{response.status_code}]")
+                                self.update_gui.logger(f"Failed when edite device name [{selected_device.name}] to [{name}] [{response.status_code}]")
                         except:
-                            self.update_gui.logger(f"Failed when edit device name [{self.selected_device.name}] to [{name}]")
+                            self.update_gui.logger(f"Failed when edit device name [{selected_device.name}] to [{name}]")
                         self.update_gui.reload()
 
                     if ssid or host:
-                        # todo: request to change wifi
-                        self.update_gui.logger(f"Editing wifi of device: [{self.selected_device.name}]: SSID {ssid}, HOST {host}:{port}]")
-                        device_url = f'http://{self.selected_device.ip}:8080/change_wifi'
-                        try:
-                            response = requests.post(device_url, json={"device_ip": self.selected_device.ip, 
-                                                                    "ssid": ssid, 
-                                                                    "password": pw,
-                                                                    "host": host,
-                                                                    "port": port
-                                                                    }, timeout=5)
-                            if response.status_code == 200:
-                                self.update_gui.logger(f"Edited device wifi [{self.selected_device.name}]")
-                            else:
-                                self.update_gui.logger(f"Failed when edite device info [{self.selected_device.name}]")
-                        except:
-                            self.update_gui.logger(f"Failed when edite device info [{self.selected_device.name}]")
-                            pass
+                        if diaglog.apply_all:
+                            selected_devices = self.devices
+                        else:
+                            selected_devices = [selected_device]
+                        
+                        for selected_device in selected_devices:
+                            self.update_gui.logger(f"Editing wifi of device: [{selected_device.name}]: SSID {ssid}, HOST {host}:{port}]")
+                            device_url = f'http://{selected_device.ip}:8080/change_wifi'
+                            try:
+                                response = requests.post(device_url, json={"device_ip": selected_device.ip, 
+                                                                        "ssid": ssid, 
+                                                                        "password": pw,
+                                                                        "host": host,
+                                                                        "port": port
+                                                                        }, timeout=5)
+                                if response.status_code == 200:
+                                    self.update_gui.logger(f"Edited device wifi [{selected_device.name}]")
+                                else:
+                                    self.update_gui.logger(f"Failed when edite device info [{selected_device.name}]")
+                            except:
+                                self.update_gui.logger(f"Failed when edite device info [{selected_device.name}]")
+                                pass
+
                     self.update_gui.reload()
             except:
+                self.update_gui.logger(f"Failed except when edite device info")
                 pass
 
     def upload_to_device(self):
