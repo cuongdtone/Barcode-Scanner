@@ -154,6 +154,8 @@ class Device(QObject):
         self.source_folder = None
         self.status = DeviceStatus()
         self.usb = None
+        self.wifi_signal = '11'
+        self.wifi_quality = '11'
 
     def is_online(self):
         return self.status.status
@@ -201,7 +203,7 @@ class DeviceManagerGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("EmbConnect Wifi")
-        self.setFixedSize(1100, 900)
+        self.setFixedSize(1200, 900)
         # self.resize(1100, 600)
         button_width = 120
 
@@ -219,6 +221,7 @@ class DeviceManagerGUI(QMainWindow):
         self.device_table_widget = QTableWidget()
         self.device_table_widget.setColumnCount(6)
         self.device_table_widget.setItemDelegateForColumn(2, CircularDotDelegate())
+        self.device_table_widget.setColumnWidth(0, 100)
         self.device_table_widget.setColumnWidth(1, 200)
         self.device_table_widget.setColumnWidth(4, 300)
         self.device_table_widget.setColumnWidth(5, 300)
@@ -382,16 +385,18 @@ class DeviceManagerGUI(QMainWindow):
             response =  requests.get(url).json()
             self.devices = []
             for dev in response:
-                # try:
-                    name, ip, status, source_folder, usb = dev
+                try:
+                    name, ip, status, source_folder, usb, wifi_signal, wifi_quality = dev
                     d = Device(name, ip)
                     d.status = DeviceStatus()
                     d.status.status = int(status)
                     d.source_folder = source_folder
                     d.usb = usb
+                    d.wifi_quality = wifi_quality
+                    d.wifi_signal = wifi_signal
                     self.devices.append(d)
-                # except:
-                #     pass
+                except:
+                    pass
         except:
             return []
 
@@ -441,7 +446,7 @@ class DeviceManagerGUI(QMainWindow):
 
         for row, device in enumerate(self.devices):
 
-            signal_item = QTableWidgetItem("")
+            signal_item = QTableWidgetItem(f"{device.wifi_quality}/{device.wifi_signal}")
             name_item = QTableWidgetItem(device.name)
 
             device.status.statusChanged.connect(self.update_status_item)

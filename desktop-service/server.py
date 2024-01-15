@@ -146,6 +146,11 @@ def devices_register():
 
         active_devices_dict[client_ip]['longevity'] = max_longevity
 
+        if active_devices_dict[client_ip]['wifi_quality'] != data['wifi_quality'] or active_devices_dict[client_ip]['wifi_signal'] != data['wifi_signal']:
+            active_devices_dict[client_ip]['wifi_quality'] = data['wifi_quality']
+            active_devices_dict[client_ip]['wifi_signal'] = data['wifi_signal']
+            barcode_stream.put(f'[DRA]')
+
         if active_devices_dict[client_ip]['name'] != device_id:
             barcode_stream.put(f'Device name changed: {active_devices_dict[client_ip]["name"]} -> {device_id}')
             active_devices_dict[client_ip]['name'] = device_id
@@ -153,9 +158,10 @@ def devices_register():
         return 'ok'
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    active_devices_dict.update({client_ip: {"name": device_id, "dir": None, "alive": True, 
+                                            "longevity": max_longevity, "usb": None, 
+                                            'wifi_quality': '00', 'wifi_signal': '-00'}})
     barcode_stream.put(f'[DRA] {now} [{client_ip}] New Device register!')
-
-    active_devices_dict.update({client_ip: {"name": device_id, "dir": None, "alive": True, "longevity": max_longevity, "usb": None}})
     return "ok"
 
 
@@ -220,7 +226,10 @@ def devices():
         status = value['alive']
         source_folder = cfg.get('source_dir')
         usb = value['usb']
-        active_devices_list.append([device_id, client_ip, status, source_folder, usb])
+        wifi_signal = value.get('wifi_signal', '-00')
+        wifi_quality = value.get('wifi_quality', '-00')
+    
+        active_devices_list.append([device_id, client_ip, status, source_folder, usb, wifi_signal, wifi_quality])
     active_devices_list =  sorted(active_devices_list, key=lambda x: x[0])
     return jsonify(active_devices_list)
 
