@@ -104,6 +104,7 @@ def usb_content():
     if client_ip in active_devices_dict.keys():
         active_devices_dict[client_ip]['usb'] = fname
     barcode_stream.put(f'[DRA]')
+    return 'ok'
 
 
 @app.route('/usb_clean', methods=['POST'])
@@ -112,7 +113,7 @@ def usb_clean():
     if client_ip in active_devices_dict.keys():
         active_devices_dict[client_ip]['usb'] = None
     barcode_stream.put(f'[DRA]')
-
+    return 'ok'
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
