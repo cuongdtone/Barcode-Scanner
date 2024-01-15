@@ -5,7 +5,21 @@ import json
 import time
 import requests
 import traceback
+import re
+import subprocess
 
+
+pattern_wifi = r'Link Quality=(\d+)/\d+.*Signal level=(-\d+)\sdBm'
+
+def get_wifi_signal():
+    input_string = subprocess.check_output(["iwconfig", "wlan0"]).decode("utf-8")
+    matches = re.search(pattern_wifi, input_string)
+    if matches:
+        link = matches.group(1)
+        level = matches.group(2)
+        return link, level
+    else:
+        return "00", "00" 
 
 def run_device_command(cmd):
     cmd = cmd.strip().split()
@@ -54,7 +68,8 @@ while True:
         os.system('touch /etc/wifi_connected')
         try:
             print("Ping to server")
-            response = requests.post(desktop_url, json={'device_id': data_cfg['device_id']}, timeout=3)
+            link_qa, signal = get_wifi_signal()
+            response = requests.post(desktop_url, json={'device_id': data_cfg['device_id'], 'wifi_quality': link_qa, 'wifi_signal': signal}, timeout=3)
             print(f"Ping to server: {response.status_code}")
             # if response.status_code == 200:
             #     time.sleep(1)
