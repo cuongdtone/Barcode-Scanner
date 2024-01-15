@@ -342,7 +342,7 @@ class DeviceManagerGUI(QMainWindow):
         url = 'http://127.0.0.1:8081/clear_cache'
         try:
             response = requests.get(url)
-            self.reload()
+            self.reload2()
         except:
             pass
 
@@ -655,6 +655,18 @@ class DeviceManagerGUI(QMainWindow):
             self.populate_device_table()
 
     def reload(self):
+        self.get_devices()
+        # self.selected_device = None
+        # self.device_info_label.setText("Select a device to view its info.")
+        # self.setup_button.setEnabled(False)
+        # self.upload_button.setEnabled(False)
+        # self.select_folder_button.setEnabled(False)
+        # self.clear_usb_button.setEnabled(False)
+        # self.repair_usb_button.setEnabled(False)
+        # self.remove_button.setEnabled(False)
+        self.populate_device_table()
+    
+    def reload2(self):
         self.get_devices()
         self.selected_device = None
         self.device_info_label.setText("Select a device to view its info.")
