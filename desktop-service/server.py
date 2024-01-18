@@ -8,11 +8,13 @@ import json
 from flask import Flask, request, jsonify, send_file, Response
 from queue import Queue
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 
 app = Flask(__name__)
+executor = ThreadPoolExecutor(5)
 
 max_longevity = 30
 
@@ -32,6 +34,9 @@ if os.path.exists(cache_path_cfg):
 
 for client_ip in active_devices_dict.keys():
     active_devices_dict[client_ip]['longevity'] = max_longevity
+    active_devices_dict[client_ip]['usb_busy'] = False
+    active_devices_dict[client_ip]['wifi_signal'] = '-00'
+    active_devices_dict[client_ip]['wifi_quality'] = '00'
 
 barcode_stream = Queue(maxsize=200)
 
@@ -50,6 +55,7 @@ def alive_thread():
         for client_ip in active_devices_dict_temp.keys():
             if active_devices_dict_temp[client_ip]['longevity'] < 0:
                 if active_devices_dict_temp[client_ip]['alive'] == True:
+                    active_devices_dict_temp[client_ip]['usb_busy'] = False
                     active_devices_dict_temp[client_ip]['alive'] = False
                     barcode_stream.put(f'[DRA]')
             else:
@@ -60,8 +66,22 @@ def alive_thread():
 
 Thread(target=alive_thread).start()
 
+def upload_task(ip, name, path):
+    url = f'http://{ip}:8080/upload'
+    with open(path, 'rb') as file:
+        try:
+            response = requests.post(url, files={'file': file})
+            if response.status_code != 200:
+                barcode_stream.put(f"[IS]  Device offline: [{name}][{response.status_code}]!!\n")
+            else:
+                barcode_stream.put(f"[IS] Uploaded: [{name}][{response.status_code}]!!\n")
+        except:
+            barcode_stream.put(f"[IS] Cannot upload: [{name}][Connect error]!!\n")
+
+
 @app.route('/barcode', methods=['POST'])
 def barcode():
+    global active_devices_dict
     data = request.get_json()
     barcode = data['barcode']
     client_ip = request.remote_addr
@@ -75,6 +95,12 @@ def barcode():
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     ###########################################
+    if active_devices_dict[client_ip]['usb_busy']:
+        return 'ok'
+
+    active_devices_dict[client_ip]['usb_busy'] = True
+    barcode_stream.put(f'[DRA]')
+
     if dir_barcode is not None:
         # if client_ip in active_devices_dict.keys():
         #     barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} file sent')
@@ -89,29 +115,42 @@ def barcode():
 
         if os.path.exists(file_path):
             barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} file sent')
-            return send_file(file_path, download_name=os.path.basename(file_path), as_attachment=True)
+            executor.submit(upload_task, client_ip, active_devices_dict[client_ip]["name"], file_path)
+            return 'ok' #send_file(file_path, download_name=os.path.basename(file_path), as_attachment=True)
         else:
             barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} - File is not existed')
     else:
         barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} - Source folder is not selected')
+    # clean usb
+    url = f'http://{client_ip}:8080/clean'
+    try:
+        response = requests.get(url)
+    except:
+        barcode_stream.put(f'[IS] Cannot clean USB')
+        pass
+
     return "clean"
 
 @app.route('/usb_file_event', methods=['POST'])
 def usb_content():
+    global active_devices_dict
     client_ip = request.remote_addr
     data = request.get_json()
     fname = data['fname']
     if client_ip in active_devices_dict.keys():
         active_devices_dict[client_ip]['usb'] = fname
-    barcode_stream.put(f'[DRA]')
+        active_devices_dict[client_ip]['usb_busy'] = False
+    barcode_stream.put(f'[DRA]') # reload windown
     return 'ok'
 
 
 @app.route('/usb_clean', methods=['POST'])
 def usb_clean():
+    global active_devices_dict
     client_ip = request.remote_addr
     if client_ip in active_devices_dict.keys():
         active_devices_dict[client_ip]['usb'] = None
+        active_devices_dict[client_ip]['usb_busy'] = False
     barcode_stream.put(f'[DRA]')
     return 'ok'
 
@@ -229,8 +268,8 @@ def devices():
         usb = value['usb']
         wifi_signal = value.get('wifi_signal', '-00')
         wifi_quality = value.get('wifi_quality', '-00')
-    
-        active_devices_list.append([device_id, client_ip, status, source_folder, usb, wifi_signal, wifi_quality])
+        usb_busy = value.get('usb_busy', False)
+        active_devices_list.append([device_id, client_ip, status, source_folder, usb, wifi_signal, wifi_quality, usb_busy])
     active_devices_list =  sorted(active_devices_list, key=lambda x: x[0])
     return jsonify(active_devices_list)
 
@@ -246,24 +285,19 @@ def stream_data():
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    def upload_task(ip, name, path):
-        url = f'http://{ip}:8080/upload'
-        with open(path, 'rb') as file:
-            try:
-                response = requests.post(url, files={'file': file})
-                if response.status_code != 200:
-                    barcode_stream.put(f"[IS]  Device offline: [{name}][{response.status_code}]!!\n")
-                else:
-                    barcode_stream.put(f"[IS] Uploaded: [{name}][{response.status_code}]!!\n")
-            except:
-                barcode_stream.put(f"[IS] Cannot upload: [{name}][Connect error]!!\n")
-
+    global active_devices_dict
     data = request.get_json()
     file_path = data.get('fpath')
     ip = data.get('ip')
     name = data.get('name')
+    if active_devices_dict[ip]['usb_busy']:
+        barcode_stream.put(f"Device busy\n")
+        barcode_stream.put(f'[DRA]')
+        return 'ok'
+    active_devices_dict[ip]['usb_busy'] = True
     if file_path and ip:
-        Thread(target=upload_task, args=(ip, name, file_path, )).start()
+        executor.submit(upload_task, ip, name, file_path)
+        # Thread(target=upload_task, args=(ip, name, file_path, )).start()
     else:
         barcode_stream.put(f"[IS] Cannot upload: [{name}][Task error]!!\n")
     return "ok"

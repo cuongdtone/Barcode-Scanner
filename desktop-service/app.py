@@ -156,6 +156,7 @@ class Device(QObject):
         self.usb = None
         self.wifi_signal = '11'
         self.wifi_quality = '11'
+        self.usb_busy = False
 
     def is_online(self):
         return self.status.status
@@ -333,6 +334,7 @@ class DeviceManagerGUI(QMainWindow):
         if self.selected_device:
             url = f'http://{self.selected_device.ip}:8080/clean'
             try:
+                self.disable_upload_button()
                 response = requests.get(url)
                 self.reload()
             except:
@@ -386,7 +388,7 @@ class DeviceManagerGUI(QMainWindow):
             self.devices = []
             for dev in response:
                 try:
-                    name, ip, status, source_folder, usb, wifi_signal, wifi_quality = dev
+                    name, ip, status, source_folder, usb, wifi_signal, wifi_quality, usb_busy = dev
                     d = Device(name, ip)
                     d.status = DeviceStatus()
                     d.status.status = int(status)
@@ -394,6 +396,7 @@ class DeviceManagerGUI(QMainWindow):
                     d.usb = usb
                     d.wifi_quality = wifi_quality
                     d.wifi_signal = wifi_signal
+                    d.usb_busy = usb_busy
                     self.devices.append(d)
                 except:
                     pass
@@ -470,6 +473,9 @@ class DeviceManagerGUI(QMainWindow):
                 brush = QBrush(color)
                 usb_item.setBackground(brush)
 
+            if self.selected_device is not None:
+                if self.selected_device.ip == device.ip:
+                    self.selected_device = device
 
             self.device_table_widget.setItem(row, 0, signal_item)
             self.device_table_widget.setItem(row, 1, name_item)
@@ -505,6 +511,13 @@ class DeviceManagerGUI(QMainWindow):
         try:
             if row < len(self.devices):
                 self.selected_device = self.devices[row]
+                if self.selected_device.usb_busy:
+                    self.clear_usb_button.setEnabled(False)
+                    self.upload_button.setEnabled(False)
+                else:
+                    self.clear_usb_button.setEnabled(True)
+                    self.upload_button.setEnabled(True)
+
                 if column == 4:
                     if self.selected_device.source_folder is not None:
                         list_dir = os.listdir(self.selected_device.source_folder)
@@ -513,9 +526,7 @@ class DeviceManagerGUI(QMainWindow):
                 self.device_info_label.setText(
                     f"Name: {self.selected_device.name}\nStatus: {self.selected_device.status.str_status()}\nIP: {self.selected_device.ip}\nFolder: {self.selected_device.source_folder}")
                 self.setup_button.setEnabled(True)
-                self.upload_button.setEnabled(True)
                 self.select_folder_button.setEnabled(True)
-                self.clear_usb_button.setEnabled(True)
                 self.repair_usb_button.setEnabled(True)
                 self.remove_button.setEnabled(True)
         except:
@@ -593,15 +604,26 @@ class DeviceManagerGUI(QMainWindow):
                             self.update_gui.logger(f"[UI] Uploading {file_path} to [{device_name}]")
                             url = 'http://127.0.0.1:8081/upload'
                             try:
+                                self.upload_button.setEnabled(False)
+                                self.clear_usb_button.setEnabled(False)
+                                for d in self.devices:
+                                    if d.ip == device_ip:
+                                        d.usb_busy = True
                                 response = requests.post(url, json={'ip': device_ip, 'name': device_name, 'fpath': file_path})
                                 if response.status_code != 200:
+                                    self.upload_button.setEnabled(True)
+                                    self.clear_usb_button.setEnabled(True)
                                     self.update_gui.logger(f"[UI] Cannot upload {file_path} to [{device_name}] [Internal server error]")
-                            except:
+                            except Exception as e:
+                                print(e)
+                                self.upload_button.setEnabled(True)
+                                self.clear_usb_button.setEnabled(True)
                                 self.update_gui.logger(f"[UI] Cannot upload {file_path} to [{device_name}] [Internal server error]")
             except:
                 self.update_gui.logger(f"[UI] Try again !")
 
         else:
+            self.upload_button.setEnabled(False)
             self.update_gui.logger(f"[UI] Device offline")
 
 
@@ -665,6 +687,14 @@ class DeviceManagerGUI(QMainWindow):
         # self.repair_usb_button.setEnabled(False)
         # self.remove_button.setEnabled(False)
         self.populate_device_table()
+        if self.selected_device is not None:
+            # print("reload2", self.selected_device.name, self.selected_device.usb_busy)
+            if self.selected_device.usb_busy:
+                self.upload_button.setEnabled(False)
+                self.clear_usb_button.setEnabled(False)
+            else:
+                self.upload_button.setEnabled(True)
+                self.clear_usb_button.setEnabled(True)
     
     def reload2(self):
         self.get_devices()
