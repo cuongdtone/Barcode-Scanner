@@ -123,16 +123,17 @@ def request_barcode(barcode):
     try:
         response = requests.post(url, json=data)
         if response.status_code == 200:
-            try:
-                attachment_filename = response.headers.get('Content-Disposition').split('filename=')[1]
-                save_path = f'{media}/{attachment_filename}'
-                with open(save_path, 'wb') as file:
-                    file.write(response.content)
-                log(f"Received file: {attachment_filename}")
-                move_to_usb(save_path)
-            except:
-                clean_usb()
-                pass
+            pass
+            # try:
+            #     attachment_filename = response.headers.get('Content-Disposition').split('filename=')[1]
+            #     save_path = f'{media}/{attachment_filename}'
+            #     with open(save_path, 'wb') as file:
+            #         file.write(response.content)
+            #     log(f"Received file: {attachment_filename}")
+            #     move_to_usb(save_path)
+            # except:
+            #     clean_usb()
+            #     pass
         else:
             print("Error occurred while sending the request.")
     except:

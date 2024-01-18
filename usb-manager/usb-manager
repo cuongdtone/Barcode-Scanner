@@ -61,7 +61,6 @@ def repair_usb():
     try: #todo: convert to subproccess for system call
         os.system('rm -rf /data')
         log(f"Repair USB at {data_cfg['device_id']}")
-        os.system('reboot -f')
     except:
         pass
 
@@ -105,24 +104,23 @@ class USBSingle:
                         requests.post(url=usb_url, json={'fname': os.path.basename(fpath)})
                     except:
                         pass
-
-                    time.sleep(0.2)
                 if self.clean:
                     self.clean = 0
+                    clean_file()
                     usb_url = f'http://{data_cfg["host"]}:{data_cfg["port"]}/usb_clean'
                     try:
                         requests.post(url=usb_url)
                     except:
                         pass
-                    clean_file()
                 if self.repair:
                     self.repair = 0
+                    repair_usb()
                     usb_url = f'http://{data_cfg["host"]}:{data_cfg["port"]}/usb_clean'
                     try:
                         requests.post(url=usb_url)
                     except:
                         pass
-                    repair_usb()
+                    os.system('reboot -f')
             except:
                 print("Usb-server: error")
             time.sleep(0.3)        
