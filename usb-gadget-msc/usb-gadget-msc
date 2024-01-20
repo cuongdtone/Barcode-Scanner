@@ -3,6 +3,25 @@ import os
 import subprocess
 import time
 
+##################################
+import traceback
+import logging
+from logging.handlers import RotatingFileHandler
+from logging import Formatter
+#########################
+logger = logging.getLogger('RotatingFileHandler')
+logger.setLevel(logging.DEBUG)
+
+
+os.makedirs(f'/log/usb-gadget', exist_ok=True)
+
+handler = RotatingFileHandler(f'/log/usb-gadget/kernel.log', maxBytes=10000000, backupCount=100)
+formatter = Formatter('%(asctime)s - %(levelname)s - [PID:%(process)d]  - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.info('Start')
+######################################
+
 work_dir = '/data'
 usb_backingfile = os.path.join(work_dir, 'usb_partition.img')
 usb_size = 1024 # MB
@@ -17,13 +36,17 @@ def run_device_command(cmd):
 
 os.makedirs(work_dir, mode, exist_ok=True)
 
-
+logger.info(f'{usb_backingfile}')
 if not os.path.exists(usb_backingfile):
-    run_device_command(f'dd if=/dev/zero of={usb_backingfile} bs=1M count={usb_size} status=progress conv=fsync')
+    logger.info(f'{usb_backingfile} not exist')
+    out = run_device_command(f'dd if=/dev/zero of={usb_backingfile} bs=1M count={usb_size} status=progress conv=fsync')
+    logger.info(f'dd: {out}')
     out = run_device_command(f'mkdosfs {usb_backingfile} -F 32 -I')
+    logger.info(f'mkdosfs: {out}')
     if 'mkfs.fat' not in out:
         os.system('echo "USB-MSC Error: Cannot create partition" >> /data/usb-msc.log')
         exit(1)
 
 time.sleep(5)
-run_device_command(f'modprobe g_mass_storage file={usb_backingfile} stall=0 removable=1')
+out = run_device_command(f'modprobe g_mass_storage file={usb_backingfile} stall=0 removable=1')
+logger.info(f'Done: {out}')

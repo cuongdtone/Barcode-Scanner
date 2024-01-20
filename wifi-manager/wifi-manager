@@ -8,17 +8,42 @@ import traceback
 import re
 import subprocess
 
+######################### logger
+import logging
+from logging.handlers import RotatingFileHandler
+from logging import Formatter
+#########################
+logger = logging.getLogger('RotatingFileHandler')
+logger.setLevel(logging.DEBUG)
+
+
+os.makedirs(f'/log/wifi-manager', exist_ok=True)
+
+handler = RotatingFileHandler(f'/log/wifi-manager/network.log', maxBytes=10000000, backupCount=100)
+formatter = Formatter('%(asctime)s - %(levelname)s - [PID:%(process)d]  - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.info('Start')
+########################
 
 pattern_wifi = r'Link Quality=(\d+)/\d+.*Signal level=(-\d+)\sdBm'
+json_file = "/root/cfg.json"
+data_cfg = None
+cfg_url = f"""http://127.0.0.1:8080/cfg"""
 
 def get_wifi_signal():
     input_string = subprocess.check_output(["iwconfig", "wlan0"]).decode("utf-8")
+    logger.debug("iwconfig wland0: " + input_string.strip())
     matches = re.search(pattern_wifi, input_string)
-    if matches:
-        link = matches.group(1)
-        level = matches.group(2)
-        return link, level
-    else:
+    try:
+        if matches:
+            link = matches.group(1)
+            level = matches.group(2)
+            return link, level
+        else:
+            return "00", "00" 
+    except:
+        logger.error("Get_wifi_signal failed: %s\n%s", input_string, traceback.format_exc())
         return "00", "00" 
 
 def run_device_command(cmd):
@@ -26,55 +51,58 @@ def run_device_command(cmd):
     result = subprocess.run(cmd, capture_output=True, text=True)
     return result.stdout if result.returncode == 0 else result.stderr
 
-json_file = "/root/cfg.json"
-data_cfg = None
-cfg_url = f"""http://127.0.0.1:8080/cfg"""
-
 def load_cfg():
     try:
         res = requests.get(url=cfg_url)
         return res.json()
     except:
+        logger.error("Load config failed\n%s", traceback.format_exc())
         with open(json_file) as file:
             data_cfg = json.load(file)
         return data_cfg
 
-with open(json_file) as file:
-    data_cfg = json.load(file)
 
-desktop_url = f"""http://{data_cfg['host']}:{data_cfg['port']}/device_register"""
-alive_flag = True
+if __name__ == '__main__':
+    with open(json_file) as file:
+        data_cfg = json.load(file)
+    logger.debug(data_cfg)
+
+    desktop_url = f"""http://{data_cfg['host']}:{data_cfg['port']}/device_register"""
+    alive_flag = True
 
 
-while True:
-    out = run_device_command(f'iwgetid')
-    data_cfg = load_cfg()
-    if data_cfg['ssid'] not in out:
-        alive_flag = False
-        if os.path.exists('/etc/wifi_connected'):
-            print("Disconnected")
-            os.remove('/etc/wifi_connected')
-        ssid = data_cfg['ssid']
-        password = data_cfg['password']
-        print(f"Connect with wifi {ssid}")
-        command = f'nmcli d wifi connect "{ssid}" password "{password}"'
-        os.system(command)
-        time.sleep(1)
-    else:
-        if alive_flag is False:
-            print('Reconnected')
-            # os.system('systemctl restart usb-manager')
-            alive_flag = True
-        os.system('touch /etc/wifi_connected')
+    while True:
         try:
-            print("Ping to server")
-            link_qa, signal = get_wifi_signal()
-            response = requests.post(desktop_url, json={'device_id': data_cfg['device_id'], 'wifi_quality': link_qa, 'wifi_signal': signal}, timeout=3)
-            print(f"Ping to server: {response.status_code}")
-            # if response.status_code == 200:
-            #     time.sleep(1)
-            # else:
-            time.sleep(1)
+            out = run_device_command(f'iwgetid')
+            logger.debug('iwgetid: ' + out.strip())
+            data_cfg = load_cfg()
+            logger.debug(data_cfg)
+            if data_cfg['ssid'] not in out:
+                alive_flag = False
+                if os.path.exists('/etc/wifi_connected'):
+                    logger.info("Wifi disconnected")
+                    os.remove('/etc/wifi_connected')
+                ssid = data_cfg['ssid']
+                password = data_cfg['password']
+                logger.info(f"Trying to connect wifi {ssid}")
+                command = f'nmcli d wifi connect "{ssid}" password "{password}"'
+                os.system(command)
+                time.sleep(1)
+            else:
+                if alive_flag is False:
+                    logger.info('Wifi Reconnected')
+                    alive_flag = True
+                if not os.path.exists('/etc/wifi_connected'):
+                    os.system('touch /etc/wifi_connected')
+                try:
+                    logger.info("Ping to server")
+                    link_qa, signal = get_wifi_signal()
+                    response = requests.post(desktop_url, json={'device_id': data_cfg['device_id'], 'wifi_quality': link_qa, 'wifi_signal': signal}, timeout=3)
+                    logger.info(f"Ping to server: {response.status_code}")
+                    time.sleep(1)
+                except:
+                    logger.error("Server failed\n%s", traceback.format_exc())
+                    time.sleep(1)
         except:
-            traceback.print_exc()
-            pass
+            logger.error("Cycle error\n%s", traceback.format_exc())
+            time.sleep(1)

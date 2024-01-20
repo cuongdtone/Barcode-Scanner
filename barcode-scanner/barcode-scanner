@@ -12,6 +12,25 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import time
 
+######################################### logger ###
+import traceback
+import logging
+from logging.handlers import RotatingFileHandler
+from logging import Formatter
+#########################
+logger = logging.getLogger('RotatingFileHandler')
+logger.setLevel(logging.DEBUG)
+
+
+os.makedirs(f'/log/barcode-scanner', exist_ok=True)
+
+handler = RotatingFileHandler(f'/log/barcode-scanner/app.log', maxBytes=10000000, backupCount=100)
+formatter = Formatter('%(asctime)s - %(levelname)s - [PID:%(process)d]  - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.info('Start')
+####################################################
+
 json_file = "/root/cfg.json"
 cfg_url = f"""http://127.0.0.1:8080/cfg"""
 
@@ -91,8 +110,10 @@ CHARMAP = {
 
 def log(msg):
     try:
+        logger.info(msg)
         response = requests.post(logger_url, json={'msg': msg})
     except:
+        logger.error("Logger error: %s\n%s", msg, traceback.format_exc())
         pass
 
 def clean_usb():
@@ -116,6 +137,8 @@ def request_barcode(barcode):
     global request_flag
     request_flag = True
     url = desktop_url + 'barcode'
+    logger.info(f"Url: {url}")
+
 
     data = {
         'barcode': barcode
@@ -135,8 +158,9 @@ def request_barcode(barcode):
             #     clean_usb()
             #     pass
         else:
-            print("Error occurred while sending the request.")
+            logger.error(f"Error occurred while sending the request.: {response.status_code}")
     except:
+        logger.error("Error occurred while sending the request.:\n%s", traceback.format_exc())
         pass
     request_flag = False
     
@@ -151,7 +175,7 @@ def barcode_scanner(barcode_device):
             data = categorize(event)
             if data.keystate == 1 and data.scancode != ecodes.KEY_RESERVED:
                 if data.scancode == ecodes.KEY_ENTER:
-                    print('Barcode: ', barcode, barcode_device)
+                    logger.info('Barcode: %s %s', barcode, barcode_device)
                     if request_flag is False:
                         Thread(target=request_barcode, args=(barcode, )).start()
                     else:
@@ -177,6 +201,7 @@ def main_barcode(barcode_device_path):
         barcode_scanner(barcode_device)
         barcode_device.ungrab()
     except:
+        logger.error("Error occurred read barcode.:\n%s", traceback.format_exc())
         try:
             barcode_device.ungrab()
         except:
