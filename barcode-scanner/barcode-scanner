@@ -118,11 +118,13 @@ def log(msg):
 
 def clean_usb():
     url = 'http://127.0.0.1:8080/clean_wait'
+    log("Clean usb")
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=50)
     except:
         log("Fail when clean usb")
         pass
+    log("Clean usb")
 
 def move_to_usb(fpath):
     url = 'http://127.0.0.1:8080/addfile'
@@ -144,10 +146,12 @@ def request_barcode(barcode):
     data = {
         'barcode': barcode
     }
+    logger.info(f"Cleaned, send request to server ..")
+
     try:
         response = requests.post(url, json=data)
         if response.status_code == 200:
-            logger.error(f"Sent the request.: {response.status_code}")
+            logger.info(f"Sent the request.: {response.status_code}")
         else:
             logger.error(f"Error occurred while sending the request.: {response.status_code}")
     except:
