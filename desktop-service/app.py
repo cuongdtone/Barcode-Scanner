@@ -255,6 +255,12 @@ class DeviceManagerGUI(QMainWindow):
         self.clear_button.setEnabled(True)
         self.clear_button.clicked.connect(self.clear_log)
         self.clear_button.setFixedWidth(button_width)
+
+        self.removes_button = QPushButton("Removes")
+        self.removes_button.setEnabled(True)
+        self.removes_button.clicked.connect(self.remove_offline_device)
+        self.removes_button.setFixedWidth(button_width)
+    
     
         self.setup_button = QPushButton("Edit Device")
         self.setup_button.setEnabled(False)
@@ -290,6 +296,7 @@ class DeviceManagerGUI(QMainWindow):
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.add_button)
         button_layout.addWidget(self.remove_button)
+        button_layout.addWidget(self.removes_button)
         button_layout.addWidget(self.reload_button)
         button_layout.addWidget(self.clear_button)
 
@@ -675,6 +682,21 @@ class DeviceManagerGUI(QMainWindow):
             self.repair_usb_button.setEnabled(False)
             self.remove_button.setEnabled(False)
             self.populate_device_table()
+    
+    def remove_offline_device(self):
+        for device in self.devices:
+            if not device.is_online():
+                self.remove_device_server(device.ip)
+                self.selected_device = None
+                self.device_info_label.setText("Select a device to view its info.")
+                self.setup_button.setEnabled(False)
+                self.upload_button.setEnabled(False)
+                self.select_folder_button.setEnabled(False)
+                self.clear_usb_button.setEnabled(False)
+                self.repair_usb_button.setEnabled(False)
+                self.remove_button.setEnabled(False)
+                self.get_devices()
+                self.populate_device_table()
 
     def reload(self):
         self.get_devices()

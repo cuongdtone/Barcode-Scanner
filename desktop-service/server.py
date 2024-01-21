@@ -121,13 +121,13 @@ def barcode():
             barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} - File is not existed')
     else:
         barcode_stream.put(f'{now} [{active_devices_dict[client_ip]["name"]}] Barcode {barcode} - Source folder is not selected')
-    # clean usb
-    url = f'http://{client_ip}:8080/clean'
-    try:
-        response = requests.get(url)
-    except:
-        barcode_stream.put(f'[IS] Cannot clean USB')
-        pass
+    # clean usb --> clean first in the board, then if have file -> sent it to device -> else skip this request
+    # url = f'http://{client_ip}:8080/clean'
+    # try:
+    #     response = requests.get(url)
+    # except:
+    #     barcode_stream.put(f'[IS] Cannot clean USB')
+    #     pass
 
     return "clean"
 
@@ -199,7 +199,7 @@ def devices_register():
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     active_devices_dict.update({client_ip: {"name": device_id, "dir": None, "alive": True, 
-                                            "longevity": max_longevity, "usb": None, 
+                                            "longevity": max_longevity, "usb": None, "usb_busy": False, 
                                             'wifi_quality': '00', 'wifi_signal': '-00'}})
     barcode_stream.put(f'[DRA] {now} [{client_ip}] New Device register!')
     return "ok"
