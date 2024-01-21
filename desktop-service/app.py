@@ -542,7 +542,7 @@ class DeviceManagerGUI(QMainWindow):
                     name, ssid, pw, host, port = diaglog.get_data()
                     if not selected_device.is_online():
                         self.update_gui.logger("Selected device is offline")
-                        return
+                        # return
                     if selected_device.name != name:
                         # selected_device.rename(name)
                         # server_url = 'http://127.0.0.1:8081/change_name'
