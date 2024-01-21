@@ -462,14 +462,14 @@ class DeviceManagerGUI(QMainWindow):
             ip_item = QTableWidgetItem(device.ip)
 
             info_item = QTableWidgetItem(device.source_folder)
-            if device.source_folder is not None:
+            if device.source_folder is not None and os.path.exists(device.source_folder):
                 color = QColor("green") if len(os.listdir(device.source_folder)) > 0 else QColor("yellow")
                 brush = QBrush(color)
                 info_item.setBackground(brush)
 
             usb_item = QTableWidgetItem(device.usb)
             if device.usb is not None:
-                color = QColor("green") if len(os.listdir(device.source_folder)) > 0 else QColor("yellow")
+                color = QColor("green")
                 brush = QBrush(color)
                 usb_item.setBackground(brush)
 
