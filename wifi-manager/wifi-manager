@@ -90,7 +90,6 @@ if __name__ == '__main__':
                 os.system(command)
                 time.sleep(1)
             else:
-                os.system(command)
                 if alive_flag is False:
                     logger.info('Wifi Reconnected')
                     alive_flag = True
