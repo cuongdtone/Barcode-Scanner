@@ -290,7 +290,7 @@ def upload():
     file_path = data.get('fpath')
     ip = data.get('ip')
     name = data.get('name')
-    if active_devices_dict[ip]['usb_busy']:
+    if active_devices_dict[ip].get('usb_busy', False):
         barcode_stream.put(f"Device busy\n")
         barcode_stream.put(f'[DRA]')
         return 'ok'
