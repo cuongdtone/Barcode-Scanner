@@ -11,6 +11,7 @@ from queue import Queue
 from threading import Thread
 import requests
 from concurrent.futures import ThreadPoolExecutor
+import threading
 ######################################### logger ###
 import traceback
 import logging
@@ -161,6 +162,36 @@ def usb_repair_task():
 
 app = Flask(__name__)
 executor = ThreadPoolExecutor(1)
+running_tasks_lock = threading.Lock()
+running_tasks = 0
+
+def submit_task(task, args):
+    global running_tasks
+    with running_tasks_lock:
+        if running_tasks == 0:
+            log(f"USB ready: {running_tasks}")
+            future = executor.submit(task, *args)
+            running_tasks += 1
+            future.add_done_callback(task_completed)
+        else:
+            log(f"USB busy: {running_tasks}")
+
+def submit_task_wait(task, args):
+    global running_tasks
+    with running_tasks_lock:
+        if running_tasks == 0:
+            log(f"USB ready: {running_tasks}")
+            future = executor.submit(task, *args)
+            future.result()
+            running_tasks -= 1
+        else:
+            log(f"USB busy: {running_tasks}")
+
+def task_completed(future):
+    global running_tasks
+    with running_tasks_lock:
+        running_tasks -= 1
+
 
 def check_worker_availability():
     if executor._idle_semaphore.acquire(timeout=0):
@@ -195,10 +226,7 @@ def upload_file():
         logger.info(f"Upload route: save_path={save_path}")
 
         file.save(save_path)
-        if check_worker_availability():
-            executor.submit(usb_file_event_task, save_path)
-        else:
-            log(f"USB busy")
+        submit_task(usb_file_event_task, [save_path])
         return 'File uploaded successfully'
     except:
         logger.error("Upload route: error: \n%s", traceback.format_exc())
@@ -209,10 +237,7 @@ def upload_file():
 def clean():
     try:
         logger.info(f"Clean route: start clean")
-        if check_worker_availability():
-            executor.submit(usb_clean_task)
-        else:
-            log(f"USB busy")
+        submit_task(usb_clean_task)
         return 'File uploaded successfully'
     except:
         logger.error("Clean route: error: \n%s", traceback.format_exc())
@@ -222,11 +247,7 @@ def clean():
 def clean_wait():
     try:
         logger.info(f"Clean_wait route: start clean")
-        if check_worker_availability():
-            future = executor.submit(usb_clean_task)
-            result = future.result()
-        else:
-            log(f"USB busy")
+        submit_task_wait(usb_clean_task)
         return 'File uploaded successfully'
     except:
         logger.error("Clean_wait route: error: \n%s", traceback.format_exc())
@@ -236,10 +257,7 @@ def clean_wait():
 def repair():
     try:
         logger.info(f"Repair route: start repair")
-        if check_worker_availability():
-            executor.submit(usb_repair_task)
-        else:
-            log(f"USB busy")
+        submit_task(usb_repair_task)
         return 'File uploaded successfully'
     except:
         logger.error("Repair route: error: \n%s", traceback.format_exc())
