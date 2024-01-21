@@ -117,7 +117,7 @@ def log(msg):
         pass
 
 def clean_usb():
-    url = 'http://127.0.0.1:8080/clean'
+    url = 'http://127.0.0.1:8080/clean_wait'
     try:
         response = requests.get(url)
     except:
@@ -138,25 +138,16 @@ def request_barcode(barcode):
     request_flag = True
     url = desktop_url + 'barcode'
     logger.info(f"Url: {url}")
-
-
+    # clean usb first
+    clean_usb()
+    # when clean ok --> request barcode to server
     data = {
         'barcode': barcode
     }
     try:
         response = requests.post(url, json=data)
         if response.status_code == 200:
-            pass
-            # try:
-            #     attachment_filename = response.headers.get('Content-Disposition').split('filename=')[1]
-            #     save_path = f'{media}/{attachment_filename}'
-            #     with open(save_path, 'wb') as file:
-            #         file.write(response.content)
-            #     log(f"Received file: {attachment_filename}")
-            #     move_to_usb(save_path)
-            # except:
-            #     clean_usb()
-            #     pass
+            logger.error(f"Sent the request.: {response.status_code}")
         else:
             logger.error(f"Error occurred while sending the request.: {response.status_code}")
     except:

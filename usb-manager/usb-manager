@@ -142,7 +142,6 @@ class USBSingle:
                         logger.error("Sent usb_file_event failed to server: \n%s", traceback.format_exc())
                         pass
                 if self.clean:
-                    self.clean = 0
                     logger.info('Clean USB start')
                     clean_file()
                     usb_url = f'http://{data_cfg["host"]}:{data_cfg["port"]}/usb_clean'
@@ -154,6 +153,7 @@ class USBSingle:
                     except:
                         logger.error("Sent usb_clean failed to server: \n%s", traceback.format_exc())
                         pass
+                    self.clean = 0
                 if self.repair:
                     self.repair = 0
                     repair_usb()
@@ -210,6 +210,18 @@ def clean():
     try:
         logger.info(f"Clean route: start clean {usb_manager.clean}")
         usb_manager.clean = 1
+        return 'File uploaded successfully'
+    except:
+        logger.error("Clean route: error: \n%s", traceback.format_exc())
+        return 'failed'
+
+@app.route('/clean_wait', methods=['GET'])
+def clean_wait():
+    try:
+        logger.info(f"Clean route: start clean {usb_manager.clean}")
+        usb_manager.clean = 1
+        while usb_manager.clean:
+            time.sleep(0.5)
         return 'File uploaded successfully'
     except:
         logger.error("Clean route: error: \n%s", traceback.format_exc())
