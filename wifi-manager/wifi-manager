@@ -76,6 +76,8 @@ if __name__ == '__main__':
             out = run_device_command(f'iwgetid')
             logger.debug('iwgetid: ' + out.strip())
             data_cfg = load_cfg()
+            ssid = data_cfg['ssid']
+            password = data_cfg['password']
             logger.debug(data_cfg)
             command = f'nmcli d wifi connect "{ssid}" password "{password}"'
             if data_cfg['ssid'] not in out:
@@ -83,8 +85,6 @@ if __name__ == '__main__':
                 if os.path.exists('/etc/wifi_connected'):
                     logger.info("Wifi disconnected")
                     os.remove('/etc/wifi_connected')
-                ssid = data_cfg['ssid']
-                password = data_cfg['password']
                 logger.info(f"Trying to connect wifi {ssid}")
                 os.system('nmcli dev wifi')
                 os.system(command)
