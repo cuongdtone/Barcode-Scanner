@@ -10,6 +10,7 @@ from pathlib import Path
 from queue import Queue
 from threading import Thread
 import requests
+from concurrent.futures import ThreadPoolExecutor
 ######################################### logger ###
 import traceback
 import logging
@@ -114,71 +115,67 @@ def move_file_to_usb(fpath):
         logger.error("move_file_to_usb error: \n%s", traceback.format_exc())
         log(f"USB File: Move file failed: {fpath}")
 
+def usb_file_event_task(fpath):
+    logger.info(f'usb_file_event_task Fpath: {fpath}')
+    move_file_to_usb(fpath)
+    usb_url = f'http://{data_cfg["host"]}:{data_cfg["port"]}/usb_file_event'
+    logger.info(f'Sending signal to server: {usb_url}')
+    try:
+        res = requests.post(url=usb_url, json={'fname': os.path.basename(fpath)})
+        if res.status_code != 200:
+            logger.error(f'Sent usb_file_event failed to server: status code={res.status_code}')
+        else:
+            logger.info(f'Sent to server: {usb_url}')
+    except:
+        logger.error("Sent usb_file_event failed to server: \n%s", traceback.format_exc())
 
-class USBSingle:
-    def __init__(self) -> None:
-        self.fpath_queue = Queue(maxsize=1000)
-        self.clean = 0
-        self.repair = 0
-        Thread(target=self.task).start()
-        logger.debug(f'USBSingle created instance!')
+def usb_clean_task():
+    logger.info('Clean USB start')
+    clean_file()
+    usb_url = f'http://{data_cfg["host"]}:{data_cfg["port"]}/usb_clean'
+    logger.info(f'Sending info to server: {usb_url}')
+    try:
+        res = requests.post(url=usb_url)
+        if res.status_code != 200:
+            logger.error(f'Sent usb_clean failed to server: status code={res.status_code}')
+    except:
+        logger.error("Sent usb_clean failed to server: \n%s", traceback.format_exc())
+        pass
 
-    def task(self):
-        while True:
-            try:
-                while not self.fpath_queue.empty():
-                    fpath = self.fpath_queue.get()
-                    logger.info(f'Get queue fpath_queue: {fpath}')
-                    move_file_to_usb(fpath)
-                    usb_url = f'http://{data_cfg["host"]}:{data_cfg["port"]}/usb_file_event'
-                    logger.info(f'Sending to server: {usb_url}')
-                    try:
-                        res = requests.post(url=usb_url, json={'fname': os.path.basename(fpath)})
-                        if res.status_code != 200:
-                            logger.error(f'Sent usb_file_event failed to server: status code={res.status_code}')
-                        else:
-                            logger.info(f'Sent to server: {usb_url}')
-                    except:
-                        logger.error("Sent usb_file_event failed to server: \n%s", traceback.format_exc())
-                        pass
-                if self.clean:
-                    logger.info('Clean USB start')
-                    clean_file()
-                    usb_url = f'http://{data_cfg["host"]}:{data_cfg["port"]}/usb_clean'
-                    logger.info(f'Sending info to server: {usb_url}')
-                    try:
-                        res = requests.post(url=usb_url)
-                        if res.status_code != 200:
-                            logger.error(f'Sent usb_clean failed to server: status code={res.status_code}')
-                    except:
-                        logger.error("Sent usb_clean failed to server: \n%s", traceback.format_exc())
-                        pass
-                    self.clean = 0
-                if self.repair:
-                    self.repair = 0
-                    repair_usb()
-                    usb_url = f'http://{data_cfg["host"]}:{data_cfg["port"]}/usb_clean'
-                    logger.info(f'Sending repair info to server: {usb_url}')
-                    try:
-                        res = requests.post(url=usb_url)
-                        if res.status_code != 200:
-                            logger.error(f'Sent repair failed to server: status code={res.status_code}')
-                    except:
-                        logger.error("Sent repair failed to server: \n%s", traceback.format_exc())
-                        pass
-                    logger.info("Reboot pi")
-                    os.system('reboot -f')
-            except:
-                logger.error("UsbSingle-server: error: \n%s", traceback.format_exc())
-            time.sleep(0.3)        
 
-    def add_file(self, fpath):
-        logger.info(f"UsbSingle-server: add_file: {fpath}")
-        self.fpath_queue.put(fpath)
+def usb_repair_task():
+    logger.info('Repair USB start')
+    repair_usb()
+    usb_url = f'http://{data_cfg["host"]}:{data_cfg["port"]}/usb_clean'
+    logger.info(f'Sending repair info to server: {usb_url}')
+    try:
+        res = requests.post(url=usb_url)
+        if res.status_code != 200:
+            logger.error(f'Sent repair repair in  failed to server: status code={res.status_code}')
+        else:
+            logger.error(f'Sent repair in usb_clean to server: status code={res.status_code}')
+    except:
+        logger.error("Sent repair failed to server: \n%s", traceback.format_exc())
+    logger.info("Reboot pi")
+    os.system('reboot -f')
 
 app = Flask(__name__)
+executor = ThreadPoolExecutor(1)
 
-usb_manager = USBSingle()
+def check_worker_availability():
+    if executor._idle_semaphore.acquire(timeout=0):
+        executor._idle_semaphore.release()
+        return True
+    else:
+        return False
+
+def add_task(task_type):
+    if len(executor._work_queue) == executor._max_workers:
+        pass
+    else:
+        pass
+
+# usb_manager = USBSingle()
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -198,7 +195,10 @@ def upload_file():
         logger.info(f"Upload route: save_path={save_path}")
 
         file.save(save_path)
-        usb_manager.add_file(save_path)
+        if check_worker_availability():
+            executor.submit(usb_file_event_task, save_path)
+        else:
+            log(f"USB busy")
         return 'File uploaded successfully'
     except:
         logger.error("Upload route: error: \n%s", traceback.format_exc())
@@ -208,8 +208,11 @@ def upload_file():
 @app.route('/clean', methods=['GET'])
 def clean():
     try:
-        logger.info(f"Clean route: start clean {usb_manager.clean}")
-        usb_manager.clean = 1
+        logger.info(f"Clean route: start clean")
+        if check_worker_availability():
+            executor.submit(usb_clean_task)
+        else:
+            log(f"USB busy")
         return 'File uploaded successfully'
     except:
         logger.error("Clean route: error: \n%s", traceback.format_exc())
@@ -218,37 +221,42 @@ def clean():
 @app.route('/clean_wait', methods=['GET'])
 def clean_wait():
     try:
-        logger.info(f"Clean route: start clean {usb_manager.clean}")
-        usb_manager.clean = 1
-        while usb_manager.clean:
-            time.sleep(0.5)
+        logger.info(f"Clean_wait route: start clean")
+        if check_worker_availability():
+            future = executor.submit(usb_clean_task)
+            result = future.result()
+        else:
+            log(f"USB busy")
         return 'File uploaded successfully'
     except:
-        logger.error("Clean route: error: \n%s", traceback.format_exc())
+        logger.error("Clean_wait route: error: \n%s", traceback.format_exc())
         return 'failed'
 
 @app.route('/repair', methods=['GET'])
 def repair():
     try:
-        logger.info(f"Repair route: start repair {usb_manager.repair}")
-        usb_manager.repair = 1
+        logger.info(f"Repair route: start repair")
+        if check_worker_availability():
+            executor.submit(usb_repair_task)
+        else:
+            log(f"USB busy")
         return 'File uploaded successfully'
     except:
         logger.error("Repair route: error: \n%s", traceback.format_exc())
         return 'failed'
 
-@app.route('/addfile', methods=['POST'])
-def add_file():
-    try:
-        logger.info(f"Addfile route: start addfile")
-        data = request.get_json()
-        logger.info(f"Addfile data {data}")
-        fpath = data['fpath']
-        usb_manager.add_file(fpath)
-        return "200"
-    except:
-        logger.error("Addfile route: error: \n%s", traceback.format_exc())
-        return 'failed'
+# @app.route('/addfile', methods=['POST'])
+# def add_file():
+#     try:
+#         logger.info(f"Addfile route: start addfile")
+#         data = request.get_json()
+#         logger.info(f"Addfile data {data}")
+#         fpath = data['fpath']
+#         usb_manager.add_file(fpath)
+#         return "200"
+#     except:
+#         logger.error("Addfile route: error: \n%s", traceback.format_exc())
+#         return 'failed'
 
 
 @app.route('/alive', methods=['GET'])
@@ -274,7 +282,7 @@ def change_name():
 @app.route('/cfg', methods=['GET'])
 def cfg():
     global data_cfg
-    logger.info(f"cfg route: {data_cfg}")
+    # logger.info(f"cfg route: {data_cfg}")
     return jsonify(data_cfg)
 
 @app.route('/change_wifi', methods=['POST'])
@@ -297,6 +305,7 @@ def change_wifi():
             data_cfg['port'] = port
 
         dump_cfg()
+        os.system('reboot -f')
         return jsonify({'status': 'True'})
     except:
         logger.error("Change_wifi route: error: \n%s", traceback.format_exc())

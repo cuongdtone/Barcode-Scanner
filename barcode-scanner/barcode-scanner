@@ -118,13 +118,13 @@ def log(msg):
 
 def clean_usb():
     url = 'http://127.0.0.1:8080/clean_wait'
-    log("Clean usb")
+    log("Clean usb start")
     try:
         response = requests.get(url, timeout=50)
     except:
         log("Fail when clean usb")
         pass
-    log("Clean usb")
+    log("Cleaned usb")
 
 def move_to_usb(fpath):
     url = 'http://127.0.0.1:8080/addfile'
