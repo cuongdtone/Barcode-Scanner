@@ -95,15 +95,15 @@ if __name__ == '__main__':
                     alive_flag = True
                 if not os.path.exists('/etc/wifi_connected'):
                     os.system('touch /etc/wifi_connected')
-            try:
-                logger.info("Ping to server")
-                link_qa, signal = get_wifi_signal()
-                response = requests.post(desktop_url, json={'device_id': data_cfg['device_id'], 'wifi_quality': link_qa, 'wifi_signal': signal}, timeout=5)
-                logger.info(f"Ping to server: {response.status_code}")
-                time.sleep(1)
-            except:
-                logger.error("Server failed\n%s", traceback.format_exc())
-                time.sleep(1)
+                try:
+                    logger.info("Ping to server")
+                    link_qa, signal = get_wifi_signal()
+                    response = requests.post(desktop_url, json={'device_id': data_cfg['device_id'], 'wifi_quality': link_qa, 'wifi_signal': signal}, timeout=5)
+                    logger.info(f"Ping to server: {response.status_code}")
+                    time.sleep(1)
+                except:
+                    logger.error("Server failed\n%s", traceback.format_exc())
+                    time.sleep(1)
         except:
             logger.error("Cycle error\n%s", traceback.format_exc())
             time.sleep(1)
