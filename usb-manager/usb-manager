@@ -181,6 +181,7 @@ def submit_task_wait(task, args):
     with running_tasks_lock:
         if running_tasks == 0:
             log(f"USB ready: {running_tasks}")
+            running_tasks += 1
             future = executor.submit(task, *args)
             future.result()
             running_tasks -= 1
@@ -237,7 +238,7 @@ def upload_file():
 def clean():
     try:
         logger.info(f"Clean route: start clean")
-        submit_task(usb_clean_task)
+        submit_task(usb_clean_task, [])
         return 'File uploaded successfully'
     except:
         logger.error("Clean route: error: \n%s", traceback.format_exc())
@@ -247,7 +248,7 @@ def clean():
 def clean_wait():
     try:
         logger.info(f"Clean_wait route: start clean")
-        submit_task_wait(usb_clean_task)
+        submit_task_wait(usb_clean_task, [])
         return 'File uploaded successfully'
     except:
         logger.error("Clean_wait route: error: \n%s", traceback.format_exc())
@@ -257,7 +258,7 @@ def clean_wait():
 def repair():
     try:
         logger.info(f"Repair route: start repair")
-        submit_task(usb_repair_task)
+        submit_task(usb_repair_task, [])
         return 'File uploaded successfully'
     except:
         logger.error("Repair route: error: \n%s", traceback.format_exc())
