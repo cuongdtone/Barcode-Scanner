@@ -77,6 +77,7 @@ if __name__ == '__main__':
             logger.debug('iwgetid: ' + out.strip())
             data_cfg = load_cfg()
             logger.debug(data_cfg)
+            command = f'nmcli d wifi connect "{ssid}" password "{password}"'
             if data_cfg['ssid'] not in out:
                 alive_flag = False
                 if os.path.exists('/etc/wifi_connected'):
@@ -85,24 +86,25 @@ if __name__ == '__main__':
                 ssid = data_cfg['ssid']
                 password = data_cfg['password']
                 logger.info(f"Trying to connect wifi {ssid}")
-                command = f'nmcli d wifi connect "{ssid}" password "{password}"'
+                os.system('nmcli dev wifi')
                 os.system(command)
                 time.sleep(1)
             else:
+                os.system(command)
                 if alive_flag is False:
                     logger.info('Wifi Reconnected')
                     alive_flag = True
                 if not os.path.exists('/etc/wifi_connected'):
                     os.system('touch /etc/wifi_connected')
-                try:
-                    logger.info("Ping to server")
-                    link_qa, signal = get_wifi_signal()
-                    response = requests.post(desktop_url, json={'device_id': data_cfg['device_id'], 'wifi_quality': link_qa, 'wifi_signal': signal}, timeout=3)
-                    logger.info(f"Ping to server: {response.status_code}")
-                    time.sleep(1)
-                except:
-                    logger.error("Server failed\n%s", traceback.format_exc())
-                    time.sleep(1)
+            try:
+                logger.info("Ping to server")
+                link_qa, signal = get_wifi_signal()
+                response = requests.post(desktop_url, json={'device_id': data_cfg['device_id'], 'wifi_quality': link_qa, 'wifi_signal': signal}, timeout=5)
+                logger.info(f"Ping to server: {response.status_code}")
+                time.sleep(1)
+            except:
+                logger.error("Server failed\n%s", traceback.format_exc())
+                time.sleep(1)
         except:
             logger.error("Cycle error\n%s", traceback.format_exc())
             time.sleep(1)
